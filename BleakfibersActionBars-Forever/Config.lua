@@ -346,14 +346,24 @@ function Config:SaveCurrentAs(name)
     if not name or name == "" then return end
     self:InitDB()
     local curActive = self:GetActiveProfile()
-    BleakfibersActionBarsDB.profiles[name] = DeepCopy(BleakfibersActionBarsDB.profiles[curActive] or BleakfibersActionBarsDB)
+    BleakfibersActionBarsDB.profiles[name] = DeepCopy(BleakfibersActionBarsDB.profiles[curActive] or BleakfibersActionBarsDB or DB_DEFAULTS)
+    EnsureProfileDefaults(BleakfibersActionBarsDB.profiles[name])
     self:SetActiveProfile(name)
 end
 
-function Config:CreateProfile(name)
+function Config:CreateProfile(name, fromName)
     if not name or name == "" then return end
     self:InitDB()
-    BleakfibersActionBarsDB.profiles[name] = DeepCopy(DB_DEFAULTS)
+    -- Never overwrite existing profile!
+    if not BleakfibersActionBarsDB.profiles[name] then
+        local source = fromName and BleakfibersActionBarsDB.profiles[fromName]
+        if not source then
+            local curActive = self:GetActiveProfile()
+            source = BleakfibersActionBarsDB.profiles[curActive] or BleakfibersActionBarsDB or DB_DEFAULTS
+        end
+        BleakfibersActionBarsDB.profiles[name] = DeepCopy(source)
+        EnsureProfileDefaults(BleakfibersActionBarsDB.profiles[name])
+    end
     self:SetActiveProfile(name)
 end
 
@@ -508,11 +518,17 @@ SLASH_BLEAKFIBERSACTIONBARS3 = "/actionbars"
 SlashCmdList["BLEAKFIBERSACTIONBARS"] = function(msg)
     msg = msg and string.trim and string.trim(msg:lower()) or (msg and msg:lower() or "")
     if msg == "move" or msg == "unlock" or msg == "movers" then
-        if BAB.Core and BAB.Core.ToggleMovers then
+        local BAC = _G["BleakfibersAddonConfigForever"] or _G["BleakfibersAddonConfig"]
+        if BAC and BAC.ToggleAllMovers then
+            BAC:ToggleAllMovers(true)
+        elseif BAB.Core and BAB.Core.ToggleMovers then
             BAB.Core:ToggleMovers(true)
         end
     elseif msg == "lock" then
-        if BAB.Core and BAB.Core.ToggleMovers then
+        local BAC = _G["BleakfibersAddonConfigForever"] or _G["BleakfibersAddonConfig"]
+        if BAC and BAC.ToggleAllMovers then
+            BAC:ToggleAllMovers(false)
+        elseif BAB.Core and BAB.Core.ToggleMovers then
             BAB.Core:ToggleMovers(false)
         end
     elseif msg == "bind" or msg == "keybind" then
@@ -585,7 +601,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                     SetCurrent = function(p) Config:SetActiveProfile(p) end,
                     SaveCurrentAs = function(p) Config:SaveCurrentAs(p) end,
                     List       = function() return Config:GetProfiles() end,
-                    Create     = function(p) Config:CreateProfile(p) end,
+                    Create     = function(p, from) Config:CreateProfile(p, from) end,
                     Delete     = function(p) Config:DeleteProfile(p) end,
                     Copy       = function(f, t) Config:CopyProfile(f, t) end,
                     Reset      = function(p) Config:ResetProfile(p) end,

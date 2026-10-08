@@ -233,6 +233,12 @@ local function EnsureMoverControlFrame()
     controlFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
     controlFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     controlFrame:SetClampedToScreen(true)
+    controlFrame:SetScript("OnShow", function(self)
+        local isBAC = (_G["BleakfibersAddonConfigForever"] ~= nil or _G["BleakfibersAddonConfig"] ~= nil)
+        if isBAC then
+            self:Hide()
+        end
+    end)
 
     BAB:CreateBackdrop(controlFrame, 0.85, 1.0, C.COLOR_BG, C.COLOR_ACCENT)
 
@@ -411,9 +417,18 @@ function Core:ToggleMovers(forcedState)
         moversUnlocked = not moversUnlocked
     end
 
+    local isBAC = (_G["BleakfibersAddonConfigForever"] ~= nil or _G["BleakfibersAddonConfig"] ~= nil)
     local ctrl = EnsureMoverControlFrame()
     if moversUnlocked then
-        ctrl:Show()
+        if not isBAC then
+            ctrl:Show()
+        else
+            ctrl:Hide()
+            local BAC = _G["BleakfibersAddonConfigForever"] or _G["BleakfibersAddonConfig"]
+            if BAC and BAC.ShowMoverControlFrame then
+                BAC:ShowMoverControlFrame()
+            end
+        end
         for key, mover in pairs(registeredMovers) do
             local overlay = mover.overlay or CreateMoverOverlay(mover)
             if IsMoverBarEnabled(key) then
@@ -427,6 +442,12 @@ function Core:ToggleMovers(forcedState)
         end
     else
         ctrl:Hide()
+        if isBAC then
+            local BAC = _G["BleakfibersAddonConfigForever"] or _G["BleakfibersAddonConfig"]
+            if BAC and BAC.HideMoverControlFrame and (not BAC.AreMoversUnlocked or not BAC:AreMoversUnlocked()) then
+                BAC:HideMoverControlFrame()
+            end
+        end
         for _, mover in pairs(registeredMovers) do
             if mover.overlay then
                 mover.overlay:Hide()

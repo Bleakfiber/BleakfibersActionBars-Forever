@@ -66,6 +66,49 @@ local INSET_BACKDROP = {
 -- Registry of UI widgets for live refresh
 local registeredWidgets = {}
 
+local function SetupAutoScroll(scrollFrame, scrollChild)
+    if not (scrollFrame and scrollChild) then return end
+    local scrollBar = _G[scrollFrame:GetName() and (scrollFrame:GetName() .. "ScrollBar")]
+
+    local function UpdateScrollState()
+        local frameHeight = scrollFrame:GetHeight()
+        local childHeight = scrollChild:GetHeight()
+        if not frameHeight or frameHeight <= 0 then return end
+        if childHeight <= frameHeight + 2 then
+            if scrollBar and scrollBar:IsShown() then
+                scrollBar:Hide()
+            end
+            scrollFrame:EnableMouseWheel(false)
+            scrollFrame:SetVerticalScroll(0)
+        else
+            if scrollBar and not scrollBar:IsShown() then
+                scrollBar:Show()
+            end
+            scrollFrame:EnableMouseWheel(true)
+        end
+    end
+
+    scrollFrame:EnableMouseWheel(true)
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local frameHeight = self:GetHeight()
+        local childHeight = scrollChild:GetHeight()
+        if not frameHeight or childHeight <= frameHeight + 2 then return end
+        local cur = self:GetVerticalScroll()
+        local maxScroll = math.max(0, childHeight - frameHeight)
+        local step = 32
+        local newScroll = cur - (delta * step)
+        if newScroll < 0 then newScroll = 0 end
+        if newScroll > maxScroll then newScroll = maxScroll end
+        self:SetVerticalScroll(newScroll)
+    end)
+
+    scrollFrame:HookScript("OnSizeChanged", UpdateScrollState)
+    scrollChild:HookScript("OnSizeChanged", UpdateScrollState)
+    scrollFrame:HookScript("OnShow", UpdateScrollState)
+    UpdateScrollState()
+    return UpdateScrollState
+end
+
 --[[-----------------------------------------------------------------------------
     Widget Factory: Checkbox
 -------------------------------------------------------------------------------]]
@@ -76,6 +119,8 @@ function UI:CreateCheckbox(parent, name, labelText, x, y, getFunc, setFunc)
     if cb.text then
         cb.text:SetText(labelText)
         cb.text:SetFontObject("GameFontHighlight")
+        cb.text:SetWordWrap(true)
+        cb.text:SetJustifyH("LEFT")
     end
 
     cb.getFunc = getFunc
@@ -426,9 +471,12 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     scrollChild:SetSize(contentWidth, 750)
     scrollFrame:SetScrollChild(scrollChild)
 
+    local updateScroll = SetupAutoScroll(scrollFrame, scrollChild)
+
     scrollFrame:SetScript("OnSizeChanged", function(self, width, height)
         if width and width > 60 then
             scrollChild:SetWidth(width - 24)
+            if updateScroll then updateScroll() end
         end
     end)
 
@@ -479,23 +527,56 @@ function UI:BuildOptions(parentContainer, isMasterHub)
                 if pane then pane:Hide() end
             end
         end
+        if updateScroll then updateScroll() end
     end
 
     local function LayoutTabButtons()
         local cWidth = tabsContainer:GetWidth()
         if not cWidth or cWidth < 200 then cWidth = 540 end
         local gap = 4
-        local btnW = math.floor((cWidth - ((#tabs - 1) * gap)) / #tabs)
-        if btnW > 92 then btnW = 92 end
-        local curX = 0
-        for _, t in ipairs(tabs) do
-            local b = tabButtons[t.id]
-            if b then
-                b:SetSize(btnW, 24)
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", tabsContainer, "TOPLEFT", curX, 0)
+        if cWidth >= 520 then
+            tabsContainer:SetHeight(28)
+            local btnW = math.floor((cWidth - ((#tabs - 1) * gap)) / #tabs)
+            if btnW > 92 then btnW = 92 end
+            local curX = 0
+            for _, t in ipairs(tabs) do
+                local b = tabButtons[t.id]
+                if b then
+                    b:SetSize(btnW, 24)
+                    b:ClearAllPoints()
+                    b:SetPoint("TOPLEFT", tabsContainer, "TOPLEFT", curX, 0)
+                end
+                curX = curX + btnW + gap
             end
-            curX = curX + btnW + gap
+        else
+            -- 2 Rows (Line break prevents tab text clipping & crowding)
+            tabsContainer:SetHeight(52)
+            local row1Tabs = 4
+            local btnW1 = math.floor((cWidth - ((row1Tabs - 1) * gap)) / row1Tabs)
+            local curX = 0
+            for i = 1, row1Tabs do
+                local t = tabs[i]
+                local b = tabButtons[t.id]
+                if b then
+                    b:SetSize(btnW1, 22)
+                    b:ClearAllPoints()
+                    b:SetPoint("TOPLEFT", tabsContainer, "TOPLEFT", curX, 0)
+                end
+                curX = curX + btnW1 + gap
+            end
+            local row2Tabs = #tabs - row1Tabs
+            local btnW2 = math.floor((cWidth - ((row2Tabs - 1) * gap)) / row2Tabs)
+            curX = 0
+            for i = row1Tabs + 1, #tabs do
+                local t = tabs[i]
+                local b = tabButtons[t.id]
+                if b then
+                    b:SetSize(btnW2, 22)
+                    b:ClearAllPoints()
+                    b:SetPoint("TOPLEFT", tabsContainer, "TOPLEFT", curX, -26)
+                end
+                curX = curX + btnW2 + gap
+            end
         end
     end
 

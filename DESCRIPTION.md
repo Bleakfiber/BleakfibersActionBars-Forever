@@ -66,3 +66,4 @@ Runs 100% standalone out of the box, and automatically embeds into **Bleakfiber'
    `World of Warcraft\_classic_\Interface\AddOns\` (or Forever client directory).
 3. Ensure the folder is named **`BleakfibersActionBars-Forever`**.
 4. Log into the game and type `/bab` or `/bab movers` to start configuring!
+
