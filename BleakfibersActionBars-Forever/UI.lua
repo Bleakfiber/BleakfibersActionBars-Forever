@@ -433,12 +433,14 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     end)
 
     -- Tab definition and navigation
+    local stanceTitle = (playerClass == "PALADIN" and "Auras / Stance") or (playerClass == "SHAMAN" and "Totems / Stance") or "Stance Bar"
     local tabs = {
         { id = "general",   title = "General" },
         { id = "bars",      title = "Action Bars" },
         { id = "petBar",    title = "Pet Bar" },
-        { id = "stanceBar", title = "Stance Bar" },
+        { id = "stanceBar", title = stanceTitle },
         { id = "microBar",  title = "Micro Menu" },
+        { id = "bagsBar",   title = "Bags Bar" },
         { id = "extraBars", title = "Extras" },
     }
 
@@ -446,11 +448,12 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     local tabPanes = {}
 
     local tabHeights = {
-        general   = 1080,
+        general   = 1200,
         bars      = 940,
         petBar    = 780,
-        stanceBar = 780,
+        stanceBar = 880,
         microBar  = 720,
+        bagsBar   = 780,
         extraBars = 580,
     }
 
@@ -546,6 +549,11 @@ function UI:BuildOptions(parentContainer, isMasterHub)
         ["DIALOG"]     = "Dialog",
     }
 
+    local orientationItems = {
+        ["HORIZONTAL"] = "Horizontal",
+        ["VERTICAL"]   = "Vertical",
+    }
+
     -- =========================================================================
     -- PANE 1: GENERAL SETTINGS
     -- =========================================================================
@@ -591,6 +599,28 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     self:CreateCheckbox(pGeneral, "BAB_CbHideCount", "Hide Stack Count Text", 12, y,
         function() return Config:Get("general", "hideCountText", false) end,
         function(v) Config:Set("general", "hideCountText", v) end
+    )
+    y = y - 32
+
+    self:CreateCheckbox(pGeneral, "BAB_CbCastOnKeyDown", "Cast on Key Down (Instant Press)", 12, y,
+        function() return Config:Get("general", "castOnKeyDown", true) end,
+        function(v)
+            Config:Set("general", "castOnKeyDown", v)
+            if BAB.Core and BAB.Core.ApplyCastOnKeyDown then BAB.Core:ApplyCastOnKeyDown() end
+        end
+    )
+    self:CreateCheckbox(pGeneral, "BAB_CbCooldownPulse", "Cooldown Pulse Animation", 230, y,
+        function() return Config:Get("general", "cooldownPulse", true) end,
+        function(v) Config:Set("general", "cooldownPulse", v) end
+    )
+    y = y - 32
+
+    self:CreateCheckbox(pGeneral, "BAB_CbProcGlow", "Spell Activation Proc Glow (Golden Borders)", 12, y,
+        function() return Config:Get("general", "procGlow", true) end,
+        function(v)
+            Config:Set("general", "procGlow", v)
+            if BAB.Core and BAB.Core.UpdateAllBars then BAB.Core:UpdateAllBars() end
+        end
     )
     y = y - 40
 
@@ -1154,6 +1184,62 @@ function UI:BuildOptions(parentContainer, isMasterHub)
         function() return Config:Get("stanceBar", "visibilityCondition", "") end,
         function(v) Config:Set("stanceBar", "visibilityCondition", v); UI:Refresh() end
     )
+    sy = sy - 48
+
+    local orientationItems = {
+        ["HORIZONTAL"] = "Horizontal",
+        ["VERTICAL"]   = "Vertical",
+    }
+    self:CreateDropdown(pStance, "BAB_DdStanceOrient", "Bar Orientation", orientationItems, 16, sy, 140,
+        function() return Config:Get("stanceBar", "orientation", "HORIZONTAL") end,
+        function(v) Config:Set("stanceBar", "orientation", v) end
+    )
+
+    if playerClass == "PALADIN" then
+        local palInfo = pStance:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        palInfo:SetPoint("TOPLEFT", pStance, "TOPLEFT", 180, sy - 14)
+        palInfo:SetText("|cff3399ff[Paladin Auras]|r Auras are managed as stance forms on this bar.")
+    elseif playerClass == "SHAMAN" then
+        sy = sy - 48
+        local hTotem = pStance:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        hTotem:SetPoint("TOPLEFT", pStance, "TOPLEFT", 12, sy)
+        hTotem:SetText("Shaman Totem Bar Configuration")
+        hTotem:SetTextColor(COLORS.goldText[1], COLORS.goldText[2], COLORS.goldText[3])
+        sy = sy - 26
+
+        self:CreateCheckbox(pStance, "BAB_CbTotemEnable", "Enable Totem Bar", 12, sy,
+            function() return Config:Get("totemBar", "enabled", true) end,
+            function(v) Config:Set("totemBar", "enabled", v) end
+        )
+        self:CreateCheckbox(pStance, "BAB_CbTotemClickThrough", "Click-Through", 160, sy,
+            function() return Config:Get("totemBar", "clickThrough", false) end,
+            function(v) Config:Set("totemBar", "clickThrough", v) end
+        )
+        self:CreateCheckbox(pStance, "BAB_CbTotemBackdrop", "Show Backdrop", 300, sy,
+            function() return Config:Get("totemBar", "backdrop", true) end,
+            function(v) Config:Set("totemBar", "backdrop", v) end
+        )
+        sy = sy - 42
+
+        self:CreateSlider(pStance, "BAB_SlTotemSize", "Totem Button Size", 20, 50, 1, 16, sy,
+            function() return Config:Get("totemBar", "buttonSize", 30) end,
+            function(v) Config:Set("totemBar", "buttonSize", v) end
+        )
+        self:CreateSlider(pStance, "BAB_SlTotemSpacing", "Totem Spacing", 0, 16, 1, 230, sy,
+            function() return Config:Get("totemBar", "buttonSpacing", 4) end,
+            function(v) Config:Set("totemBar", "buttonSpacing", v) end
+        )
+        sy = sy - 46
+
+        self:CreateSlider(pStance, "BAB_SlTotemScale", "Totem Bar Scale (%)", 50, 200, 5, 16, sy,
+            function() return Config:Get("totemBar", "scale", 100) end,
+            function(v) Config:Set("totemBar", "scale", v) end
+        )
+        self:CreateSlider(pStance, "BAB_SlTotemAlpha", "Totem Bar Alpha (%)", 10, 100, 5, 230, sy,
+            function() return Config:Get("totemBar", "alpha", 100) end,
+            function(v) Config:Set("totemBar", "alpha", v) end
+        )
+    end
 
     -- =========================================================================
     -- PANE 5: MICRO BAR
@@ -1244,6 +1330,117 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     self:CreateSlider(pMicro, "BAB_SlMicroFrameLevel", "Frame Level", 1, 20, 1, 230, my,
         function() return Config:Get("microBar", "frameLevel", 1) end,
         function(v) Config:Set("microBar", "frameLevel", v) end
+    )
+
+    -- =========================================================================
+    -- PANE 5b: BAGS BAR
+    -- =========================================================================
+    local pBags = tabPanes["bagsBar"]
+    local by = -10
+
+    local hBags = pBags:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hBags:SetPoint("TOPLEFT", pBags, "TOPLEFT", 12, by)
+    hBags:SetText("Dedicated Bags Bar Configuration")
+    hBags:SetTextColor(COLORS.goldText[1], COLORS.goldText[2], COLORS.goldText[3])
+    by = by - 26
+
+    self:CreateCheckbox(pBags, "BAB_CbBagsEnable", "Enable Bags Bar", 12, by,
+        function() return Config:Get("bagsBar", "enabled", true) end,
+        function(v) Config:Set("bagsBar", "enabled", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbBagsMouseover", "Mouseover Only", 160, by,
+        function() return Config:Get("bagsBar", "mouseover", false) end,
+        function(v) Config:Set("bagsBar", "mouseover", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbBagsFadeOOC", "Fade Out of Combat", 300, by,
+        function() return Config:Get("bagsBar", "fadeOutOfCombat", false) end,
+        function(v) Config:Set("bagsBar", "fadeOutOfCombat", v) end
+    )
+    by = by - 32
+
+    self:CreateCheckbox(pBags, "BAB_CbBagsClickThrough", "Click-Through (Pass Clicks)", 12, by,
+        function() return Config:Get("bagsBar", "clickThrough", false) end,
+        function(v) Config:Set("bagsBar", "clickThrough", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbBagsInheritGF", "Inherit Global Fade", 230, by,
+        function() return Config:Get("bagsBar", "inheritGlobalFade", false) end,
+        function(v) Config:Set("bagsBar", "inheritGlobalFade", v) end
+    )
+    by = by - 42
+
+    self:CreateSlider(pBags, "BAB_SlBagsOOCAlpha", "Out-of-Combat Alpha (%)", 0, 95, 5, 16, by,
+        function() return Config:Get("bagsBar", "outOfCombatAlpha", 35) end,
+        function(v) Config:Set("bagsBar", "outOfCombatAlpha", v) end
+    )
+    self:CreateSlider(pBags, "BAB_SlBagsAlpha", "Normal Alpha (%)", 10, 100, 5, 230, by,
+        function() return Config:Get("bagsBar", "alpha", 100) end,
+        function(v) Config:Set("bagsBar", "alpha", v) end
+    )
+    by = by - 46
+
+    self:CreateSlider(pBags, "BAB_SlBagsScale", "Bags Bar Scale (%)", 50, 200, 5, 16, by,
+        function() return Config:Get("bagsBar", "scale", 100) end,
+        function(v) Config:Set("bagsBar", "scale", v) end
+    )
+    self:CreateSlider(pBags, "BAB_SlBagsPerRow", "Buttons Per Row", 1, 10, 1, 230, by,
+        function() return Config:Get("bagsBar", "buttonsPerRow", 6) end,
+        function(v) Config:Set("bagsBar", "buttonsPerRow", v) end
+    )
+    by = by - 46
+
+    self:CreateSlider(pBags, "BAB_SlBagsSize", "Button Size", 20, 50, 1, 16, by,
+        function() return Config:Get("bagsBar", "buttonSize", 32) end,
+        function(v) Config:Set("bagsBar", "buttonSize", v) end
+    )
+    self:CreateSlider(pBags, "BAB_SlBagsSpacing", "Button Spacing", 0, 16, 1, 230, by,
+        function() return Config:Get("bagsBar", "buttonSpacing", 4) end,
+        function(v) Config:Set("bagsBar", "buttonSpacing", v) end
+    )
+    by = by - 46
+
+    self:CreateDropdown(pBags, "BAB_DdBagsOrient", "Orientation", orientationItems, 16, by, 140,
+        function() return Config:Get("bagsBar", "orientation", "HORIZONTAL") end,
+        function(v) Config:Set("bagsBar", "orientation", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbBagsBackdrop", "Show Backdrop Frame", 230, by - 14,
+        function() return Config:Get("bagsBar", "backdrop", true) end,
+        function(v) Config:Set("bagsBar", "backdrop", v) end
+    )
+    by = by - 48
+
+    self:CreateDropdown(pBags, "BAB_DdBagsStrata", "Frame Strata", strataItems, 16, by, 140,
+        function() return Config:Get("bagsBar", "frameStrata", "LOW") end,
+        function(v) Config:Set("bagsBar", "frameStrata", v) end
+    )
+    self:CreateSlider(pBags, "BAB_SlBagsFrameLevel", "Frame Level", 1, 20, 1, 230, by,
+        function() return Config:Get("bagsBar", "frameLevel", 1) end,
+        function(v) Config:Set("bagsBar", "frameLevel", v) end
+    )
+    by = by - 48
+
+    local hBagButtons = pBags:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hBagButtons:SetPoint("TOPLEFT", pBags, "TOPLEFT", 12, by)
+    hBagButtons:SetText("Included Bag Slots")
+    hBagButtons:SetTextColor(COLORS.goldText[1], COLORS.goldText[2], COLORS.goldText[3])
+    by = by - 26
+
+    self:CreateCheckbox(pBags, "BAB_CbShowBackpack", "Show Main Backpack", 12, by,
+        function() return Config:Get("bagsBar", "showBackpack", true) end,
+        function(v) Config:Set("bagsBar", "showBackpack", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbShowBagSlots", "Show Bag Slots 1-4", 230, by,
+        function() return Config:Get("bagsBar", "showBagSlots", true) end,
+        function(v) Config:Set("bagsBar", "showBagSlots", v) end
+    )
+    by = by - 32
+
+    self:CreateCheckbox(pBags, "BAB_CbShowReagentBag", "Show Reagent Bag", 12, by,
+        function() return Config:Get("bagsBar", "showReagentBag", true) end,
+        function(v) Config:Set("bagsBar", "showReagentBag", v) end
+    )
+    self:CreateCheckbox(pBags, "BAB_CbShowKeyRing", "Show Keyring", 230, by,
+        function() return Config:Get("bagsBar", "showKeyRing", true) end,
+        function(v) Config:Set("bagsBar", "showKeyRing", v) end
     )
 
     -- =========================================================================

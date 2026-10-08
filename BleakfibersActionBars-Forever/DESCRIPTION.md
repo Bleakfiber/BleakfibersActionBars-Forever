@@ -13,11 +13,12 @@ Runs 100% standalone out of the box, and automatically embeds into **Bleakfiber'
 - **Zero Required External Dependencies**: Pure, lightweight native WoW Lua engine. Runs completely standalone or seamlessly leverages LibSharedMedia when present.
 - **Comprehensive Bar Coverage**:
   - Up to **15 Action Bars** with configurable button counts, columns, sizes, and padding.
-  - Dedicated **Pet Bar** and **Stance / Shapeshift Bar** with class-aware smart defaults.
+  - **Dedicated Bags Bar**: Independent, skinnable, movable container for character bags and keyring with custom horizontal/vertical layout, scale, alpha, and slot visibility toggles.
+  - Dedicated **Pet Bar** and **Stance / Shapeshift Bar** with class-aware smart defaults, horizontal/vertical orientations, and Shaman Totem Bar & Paladin Aura support.
   - Flexible **Micro Menu** supporting up to 20 discovered micro buttons with customizable rows, columns, and dimensions.
   - **Extra Action Button** & **Vehicle Leave Button** with independent movers and layout toggles.
 - **Visual Quick Keybinder (`/bab bind`)**:
-  - Hover over any action, pet, stance, or micro button and press any key, mouse button, or scroll wheel to bind immediately.
+  - Hover over any action, pet, stance, micro, or bag button and press any key, mouse button, or scroll wheel to bind immediately.
   - Press `ESC` while hovering to instantly unbind.
   - Includes character-specific bindings toggle, Discard, and Save options without ever opening Blizzard's keybinding menu.
 - **Interactive Unified Movers (`/bab movers`)**:
@@ -25,12 +26,15 @@ Runs 100% standalone out of the box, and automatically embeds into **Bleakfiber'
   - Fully integrated with the `Bleakfibers Addon Suite` Master Mover registry.
 - **Complete Blizzard Art Suppression**:
   - Safely eliminates Blizzard gryphons, default action bar artwork, endcaps, and native containers.
-  - Cleans up legacy collapsing frame artifacts (such as empty MicroMenu borders and backgrounds).
+  - Cleans up legacy collapsing frame artifacts (such as empty MicroMenu and BagsBar borders and backgrounds).
 - **Class & Stance Paging**:
   - Full paging support for Druid shapeshift forms, Rogue stealth/shadow dance, Warrior stances, and Priest forms.
   - Modifier paging support (Shift, Ctrl, Alt).
   - Custom visibility macro drivers (e.g., `[combat] show; hide`, `[vehicleui] hide; show`) with instant presets.
 - **Deep Combat & Aesthetic Fine-Tuning**:
+  - **Cast on Key Down**: Toggle instant spell activation on button press down rather than release (`ActionButtonUseKeyDown`).
+  - **Cooldown Pulse Animation**: High-performance GPU pulse effect that expands the icon and pulses a golden flare when abilities come off cooldown.
+  - **Spell Activation Proc Glow**: Sleek Dark Slate & Gold proc border overlays for active reactive procs (`ActionButtonSpellAlertManager` / `SPELL_ACTIVATION_OVERLAY_GLOW_SHOW`).
   - **Global Fade**: Customizable resting alpha slider with immediate fade-in on mouseover or entering combat.
   - **Click-Through**: Pass mouse clicks directly through inactive bars to the 3D game world.
   - **Built-in Cooldown Numbers**: Numeric cooldown countdown with custom fonts, sizes, and 4 threshold colors (<3s, <60s, <1hr, days).

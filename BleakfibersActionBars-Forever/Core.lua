@@ -387,6 +387,10 @@ local function IsMoverBarEnabled(key)
         return db.stanceBar and (db.stanceBar.enabled ~= false)
     elseif key == "MicroBar" then
         return db.microBar and (db.microBar.enabled ~= false)
+    elseif key == "BagsBar" then
+        return db.bagsBar and (db.bagsBar.enabled ~= false)
+    elseif key == "TotemBar" then
+        return db.totemBar and (db.totemBar.enabled ~= false)
     elseif key == "ExtraBar" then
         return db.extraBar and (db.extraBar.enabled ~= false)
     elseif key == "VehicleLeave" then
@@ -1015,41 +1019,114 @@ GetOrCreatePlayerButton = function(barIndex, buttonIndex, parent)
     return btn
 end
 
+function Core:ShowCustomProcGlow(btn)
+    if not btn then return end
+    local gen = BleakfibersActionBarsDB and BleakfibersActionBarsDB.general or {}
+    if gen.procGlow == false then
+        if btn._babProcGlow then btn._babProcGlow:Hide() end
+        return
+    end
+
+    local glow = btn._babProcGlow
+    if not glow then
+        glow = CreateFrame("Frame", nil, btn)
+        glow:SetAllPoints(btn)
+        glow:SetFrameStrata("HIGH")
+        glow:SetFrameLevel(btn:GetFrameLevel() + 5)
+
+        local top = glow:CreateTexture(nil, "OVERLAY")
+        top:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        top:SetPoint("TOPLEFT", glow, "TOPLEFT", 0, 0)
+        top:SetPoint("TOPRIGHT", glow, "TOPRIGHT", 0, 0)
+        top:SetHeight(2)
+
+        local bottom = glow:CreateTexture(nil, "OVERLAY")
+        bottom:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        bottom:SetPoint("BOTTOMLEFT", glow, "BOTTOMLEFT", 0, 0)
+        bottom:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT", 0, 0)
+        bottom:SetHeight(2)
+
+        local left = glow:CreateTexture(nil, "OVERLAY")
+        left:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        left:SetPoint("TOPLEFT", glow, "TOPLEFT", 0, 0)
+        left:SetPoint("BOTTOMLEFT", glow, "BOTTOMLEFT", 0, 0)
+        left:SetWidth(2)
+
+        local right = glow:CreateTexture(nil, "OVERLAY")
+        right:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        right:SetPoint("TOPRIGHT", glow, "TOPRIGHT", 0, 0)
+        right:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT", 0, 0)
+        right:SetWidth(2)
+
+        local ag = glow:CreateAnimationGroup()
+        ag:SetLooping("BOUNCE")
+        local alpha = ag:CreateAnimation("Alpha")
+        alpha:SetFromAlpha(0.35)
+        alpha:SetToAlpha(1.0)
+        alpha:SetDuration(0.6)
+        glow.anim = ag
+
+        btn._babProcGlow = glow
+    end
+
+    glow:Show()
+    if glow.anim and not glow.anim:IsPlaying() then
+        glow.anim:Play()
+    end
+end
+
+function Core:HideCustomProcGlow(btn)
+    if btn and btn._babProcGlow then
+        if btn._babProcGlow.anim then btn._babProcGlow.anim:Stop() end
+        btn._babProcGlow:Hide()
+    end
+end
+
 function Core:AdjustOverlayGlow(btn)
     if not btn then return end
+    local gen = BleakfibersActionBarsDB and BleakfibersActionBarsDB.general or {}
     local alert = btn.SpellActivationAlert or btn.overlay
-    if not alert then return end
 
-    if alert._buiAdjusting then return end
-    alert._buiAdjusting = true
-
-    pcall(function()
-        alert:ClearAllPoints()
-        alert:SetAllPoints(btn)
-        if alert.SetClipsChildren then alert:SetClipsChildren(true) end
-        if alert.outerGlow then alert.outerGlow:SetAlpha(0); alert.outerGlow:Hide() end
-        if alert.outerGlowOver then alert.outerGlowOver:SetAlpha(0); alert.outerGlowOver:Hide() end
-        if alert.spark then alert.spark:SetAlpha(0); alert.spark:Hide() end
-        if alert.ants then alert.ants:ClearAllPoints(); alert.ants:SetAllPoints(alert) end
-        if alert.innerGlow then alert.innerGlow:ClearAllPoints(); alert.innerGlow:SetAllPoints(alert) end
-        if alert.innerGlowOver then alert.innerGlowOver:ClearAllPoints(); alert.innerGlowOver:SetAllPoints(alert) end
-    end)
-
-    alert._buiAdjusting = false
-
-    if not alert._buiGlowHooked then
-        alert._buiGlowHooked = true
-        hooksecurefunc(alert, "Show", function(self)
-            if self._buiAdjusting then return end
-            local p = self:GetParent()
-            if p then Core:AdjustOverlayGlow(p) end
-        end)
-        hooksecurefunc(alert, "SetPoint", function(self)
-            if self._buiAdjusting then return end
-            local p = self:GetParent()
-            if p then Core:AdjustOverlayGlow(p) end
-        end)
+    if gen.procGlow == false then
+        if alert then alert:Hide() end
+        self:HideCustomProcGlow(btn)
+        return
     end
+
+    if alert then
+        if alert._buiAdjusting then return end
+        alert._buiAdjusting = true
+
+        pcall(function()
+            alert:ClearAllPoints()
+            alert:SetAllPoints(btn)
+            if alert.SetClipsChildren then alert:SetClipsChildren(true) end
+            if alert.outerGlow then alert.outerGlow:SetAlpha(0); alert.outerGlow:Hide() end
+            if alert.outerGlowOver then alert.outerGlowOver:SetAlpha(0); alert.outerGlowOver:Hide() end
+            if alert.spark then alert.spark:SetAlpha(0); alert.spark:Hide() end
+            if alert.ants then alert.ants:ClearAllPoints(); alert.ants:SetAllPoints(alert) end
+            if alert.innerGlow then alert.innerGlow:ClearAllPoints(); alert.innerGlow:SetAllPoints(alert) end
+            if alert.innerGlowOver then alert.innerGlowOver:ClearAllPoints(); alert.innerGlowOver:SetAllPoints(alert) end
+        end)
+
+        alert._buiAdjusting = false
+
+        if not alert._buiGlowHooked then
+            alert._buiGlowHooked = true
+            hooksecurefunc(alert, "Show", function(self)
+                if self._buiAdjusting then return end
+                local p = self:GetParent()
+                if p then Core:AdjustOverlayGlow(p) end
+            end)
+            hooksecurefunc(alert, "SetPoint", function(self)
+                if self._buiAdjusting then return end
+                local p = self:GetParent()
+                if p then Core:AdjustOverlayGlow(p) end
+            end)
+        end
+    end
+
+    self:ShowCustomProcGlow(btn)
 end
 
 function Core:HookOverlayGlow()
@@ -1061,12 +1138,88 @@ function Core:HookOverlayGlow()
             if btn then Core:AdjustOverlayGlow(btn) end
         end)
     end
+    if ActionButton_HideOverlayGlow then
+        hooksecurefunc("ActionButton_HideOverlayGlow", function(btn)
+            if btn then Core:HideCustomProcGlow(btn) end
+        end)
+    end
+    if ActionButtonSpellAlertManager then
+        if ActionButtonSpellAlertManager.ShowAlert then
+            hooksecurefunc(ActionButtonSpellAlertManager, "ShowAlert", function(mgr, btn)
+                if btn then Core:AdjustOverlayGlow(btn) end
+            end)
+        end
+        if ActionButtonSpellAlertManager.HideAlert then
+            hooksecurefunc(ActionButtonSpellAlertManager, "HideAlert", function(mgr, btn)
+                if btn then Core:HideCustomProcGlow(btn) end
+            end)
+        end
+    end
 end
 
 --[[-----------------------------------------------------------------------------
-    Cooldown Display Engine (Native C++ countdown, Secret-Number Safe)
+    Cooldown Display Engine & Pulse Animation (Native C++ countdown, Secret-Number Safe)
 -------------------------------------------------------------------------------]]
 Core.cooldownFrames = Core.cooldownFrames or {}
+
+function Core:TriggerCooldownPulse(btn)
+    if not btn or not btn:IsShown() then return end
+    local gen = BleakfibersActionBarsDB and BleakfibersActionBarsDB.general or {}
+    if gen.cooldownPulse == false then return end
+
+    local iconTex
+    if btn.icon and btn.icon.GetTexture and btn.icon:GetTexture() then
+        iconTex = btn.icon:GetTexture()
+    elseif btn.GetNormalTexture then
+        local nt = btn:GetNormalTexture()
+        if nt and nt.GetTexture then iconTex = nt:GetTexture() end
+    end
+    if not iconTex then return end
+
+    local pulse = btn._babPulseFrame
+    if not pulse then
+        pulse = CreateFrame("Frame", nil, btn)
+        pulse:SetAllPoints(btn)
+        pulse:SetFrameStrata("HIGH")
+        pulse:SetFrameLevel(btn:GetFrameLevel() + 10)
+
+        local t = pulse:CreateTexture(nil, "OVERLAY")
+        t:SetAllPoints()
+        t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        pulse.tex = t
+
+        local glow = pulse:CreateTexture(nil, "OVERLAY", nil, 1)
+        glow:SetAllPoints()
+        glow:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 0.35)
+        glow:SetBlendMode("ADD")
+        pulse.glow = glow
+
+        local ag = pulse:CreateAnimationGroup()
+        local scale = ag:CreateAnimation("Scale")
+        scale:SetOrigin("CENTER", 0, 0)
+        local pulseScale = gen.cooldownPulseScale or 1.35
+        scale:SetScale(pulseScale, pulseScale)
+        scale:SetDuration(0.3)
+        scale:SetOrder(1)
+
+        local alpha = ag:CreateAnimation("Alpha")
+        alpha:SetFromAlpha(0.9)
+        alpha:SetToAlpha(0)
+        alpha:SetDuration(0.3)
+        alpha:SetOrder(1)
+
+        ag:SetScript("OnFinished", function()
+            pulse:Hide()
+        end)
+        pulse.anim = ag
+        btn._babPulseFrame = pulse
+    end
+
+    pulse.tex:SetTexture(iconTex)
+    pulse:Show()
+    pulse.anim:Stop()
+    pulse.anim:Play()
+end
 
 function Core:UpdateCooldownFont(cd)
     if not cd then return end
@@ -1107,6 +1260,29 @@ function Core:HookButtonCooldown(btn)
         cd:SetHideCountdownNumbers(not showNumbers)
         self:UpdateCooldownFont(cd)
     end
+
+    if cd.HookScript then
+        pcall(function()
+            cd:HookScript("OnCooldownDone", function(self)
+                local p = self:GetParent()
+                if p and Core.TriggerCooldownPulse then
+                    Core:TriggerCooldownPulse(p)
+                end
+            end)
+        end)
+    end
+
+    hooksecurefunc(cd, "SetCooldown", function(self, start, duration)
+        if duration and duration > 2 then
+            self._babHasCooldown = true
+        elseif duration == 0 and self._babHasCooldown then
+            self._babHasCooldown = false
+            local p = self:GetParent()
+            if p and Core.TriggerCooldownPulse then
+                Core:TriggerCooldownPulse(p)
+            end
+        end
+    end)
 end
 
 function Core:SkinButton(btn)
@@ -1425,6 +1601,24 @@ function Core:CreateBarContainers()
         self:SetupMouseoverFade(vb, "vehicleLeave")
         vb:Hide()
     end
+
+    if not bars.bagsBar then
+        local bb = CreateFrame("Frame", "BleakfibersActionBars_BagsBar", UIParent, "SecureHandlerStateTemplate")
+        bb:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -4, 44)
+        BAB:CreateBackdrop(bb, 0.40, 1.0, C.COLOR_BG, C.COLOR_BORDER)
+        self:RegisterMover(bb, "Bags Bar", "BagsBar", "BOTTOMRIGHT", -4, 44)
+        bars.bagsBar = bb
+        self:SetupMouseoverFade(bb, "bagsBar")
+    end
+
+    if not bars.totemBar then
+        local tb = CreateFrame("Frame", "BleakfibersActionBars_TotemBar", UIParent, "SecureHandlerStateTemplate")
+        tb:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 280, 70)
+        BAB:CreateBackdrop(tb, 0.40, 1.0, C.COLOR_BG, C.COLOR_BORDER)
+        self:RegisterMover(tb, "Totem Bar", "TotemBar", "BOTTOMLEFT", 280, 70)
+        bars.totemBar = tb
+        self:SetupMouseoverFade(tb, "totemBar")
+    end
 end
 
 local function BuildBar1PageDriver(barConfig)
@@ -1527,7 +1721,8 @@ function Core:LayoutBar(barFrame, barKey, barConfig, defaultSize, defaultSpacing
     local size = barConfig.buttonSize or defaultSize
     local spacing = barConfig.buttonSpacing or defaultSpacing
     local numButtons = min(maxButtons, barConfig.numButtons or maxButtons)
-    local perRow = min(maxButtons, barConfig.buttonsPerRow or maxButtons)
+    local isVertical = (barConfig.orientation == "VERTICAL")
+    local perRow = isVertical and 1 or min(maxButtons, barConfig.buttonsPerRow or maxButtons)
     if perRow < 1 then perRow = 1 end
 
     local numRows = math.ceil(numButtons / perRow)
@@ -1794,6 +1989,16 @@ function Core:UpdateAllBars()
         self:LayoutVehicleLeave()
     end
 
+    if bars.bagsBar and db.bagsBar then
+        self:LayoutBagsBar()
+    end
+
+    if bars.totemBar and db.totemBar then
+        self:LayoutTotemBar()
+    end
+
+    self:ApplyCastOnKeyDown()
+
     self:ApplyCombatAlpha()
 end
 
@@ -2046,6 +2251,285 @@ function Core:LayoutMicroBar()
 end
 
 --[[-----------------------------------------------------------------------------
+    8b. Dedicated Bags Bar Support
+-------------------------------------------------------------------------------]]
+function Core:GetActiveBagButtons()
+    local db = BleakfibersActionBarsDB
+    local cfg = db and db.bagsBar or {}
+    local buttons = {}
+
+    -- 1. Main backpack
+    if cfg.showBackpack ~= false and _G.MainMenuBarBackpackButton then
+        table.insert(buttons, _G.MainMenuBarBackpackButton)
+    end
+
+    -- 2. Character bags 0..3
+    if cfg.showBagSlots ~= false then
+        for i = 0, 3 do
+            local b = _G["CharacterBag" .. i .. "Slot"]
+            if b then
+                table.insert(buttons, b)
+            end
+        end
+    end
+
+    -- 3. Reagent bag (if present)
+    if cfg.showReagentBag ~= false and _G.CharacterReagentBag0Slot then
+        table.insert(buttons, _G.CharacterReagentBag0Slot)
+    end
+
+    -- 4. Keyring (if present)
+    if cfg.showKeyRing ~= false and _G.KeyRingButton then
+        table.insert(buttons, _G.KeyRingButton)
+    end
+
+    return buttons
+end
+
+function Core:SkinBagButton(btn)
+    if not btn then return end
+    if not skinnedButtons[btn] then
+        skinnedButtons[btn] = true
+
+        BAB:CreateBackdrop(btn, 0.50, 1.0, C.COLOR_BG, C.COLOR_BORDER)
+
+        local icon = btn.icon or (btn.GetName and _G[btn:GetName() .. "IconTexture"]) or btn.Icon
+        if icon then
+            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            icon:ClearAllPoints()
+            icon:SetPoint("TOPLEFT", btn, "TOPLEFT", 1, -1)
+            icon:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
+        end
+
+        local normal = btn.GetNormalTexture and btn:GetNormalTexture()
+        if normal then
+            normal:SetTexture(nil)
+            normal:SetAlpha(0)
+            normal:Hide()
+        end
+
+        local pushed = btn.GetPushedTexture and btn:GetPushedTexture()
+        if pushed then
+            pushed:SetColorTexture(1, 1, 1, 0.15)
+            pushed:SetAllPoints(btn)
+        end
+
+        local hl = btn.GetHighlightTexture and btn:GetHighlightTexture()
+        if hl then
+            hl:SetColorTexture(1, 1, 1, 0.12)
+            hl:SetAllPoints(btn)
+        end
+
+        if btn.SlotHighlightTexture then
+            btn.SlotHighlightTexture:SetTexture(nil)
+            btn.SlotHighlightTexture:Hide()
+        end
+
+        if btn.SquareMask then
+            btn.SquareMask:Hide()
+        end
+
+        if btn.CircleMask then
+            btn.CircleMask:Hide()
+        end
+    end
+end
+
+function Core:LayoutBagsBar()
+    local barFrame = bars.bagsBar
+    if not barFrame then return end
+    if InCombatLockdown() then
+        self._needsLayoutUpdate = true
+        return
+    end
+
+    local db = BleakfibersActionBarsDB
+    local cfg = db and db.bagsBar or {}
+    local bagsBarBlizz = _G.BagsBar
+
+    if not cfg.enabled then
+        barFrame:Hide()
+        if barFrame._moverOverlay then
+            barFrame._moverOverlay:Hide()
+        end
+        if bagsBarBlizz then bagsBarBlizz:Hide() end
+        local buttons = self:GetActiveBagButtons()
+        for _, btn in ipairs(buttons) do btn:Hide() end
+        return
+    end
+
+    local buttons = self:GetActiveBagButtons()
+    local numButtons = #buttons
+    if numButtons == 0 then
+        barFrame:Hide()
+        return
+    end
+
+    local isVertical = (cfg.orientation == "VERTICAL")
+    local perRow = isVertical and 1 or min(numButtons, cfg.buttonsPerRow or 6)
+    if perRow < 1 then perRow = 1 end
+
+    local btnSize = cfg.buttonSize or 32
+    local spacing = cfg.buttonSpacing or 4
+
+    local numRows = math.ceil(numButtons / perRow)
+    local actualCols = min(numButtons, perRow)
+    local width = (actualCols * btnSize) + max(0, actualCols - 1) * spacing
+    local height = (numRows * btnSize) + max(0, numRows - 1) * spacing
+
+    barFrame:SetSize(max(1, width), max(1, height))
+    if barFrame._moverOverlay then
+        barFrame._moverOverlay:SetSize(max(40, width), max(24, height))
+    end
+    barFrame:SetAlpha(((cfg.alpha or 100) / 100))
+    barFrame:SetScale(((cfg.scale or 100) / 100))
+    barFrame:SetFrameStrata(cfg.frameStrata or "LOW")
+    barFrame:SetFrameLevel(cfg.frameLevel or 1)
+    barFrame:EnableMouse(not cfg.clickThrough)
+
+    if barFrame.backdrop then
+        barFrame.backdrop:SetShown(cfg.backdrop ~= false)
+    end
+    barFrame:Show()
+
+    for i = 1, numButtons do
+        local btn = buttons[i]
+        local row = math.floor((i - 1) / perRow)
+        local col = (i - 1) % perRow
+        local x = col * (btnSize + spacing)
+        local y = (numRows - 1 - row) * (btnSize + spacing)
+
+        btn:ClearAllPoints()
+        btn:SetPoint("BOTTOMLEFT", barFrame, "BOTTOMLEFT", x, y)
+        btn:SetParent(barFrame)
+        btn:SetSize(btnSize, btnSize)
+        btn:EnableMouse(not cfg.clickThrough)
+
+        self:SkinBagButton(btn)
+        self:HookButtonMouseover(btn, barFrame, "bagsBar")
+        btn:SetAlpha(1)
+        btn:Show()
+    end
+
+    if bagsBarBlizz then
+        if bagsBarBlizz.BorderArt then
+            pcall(bagsBarBlizz.BorderArt.SetTexture, bagsBarBlizz.BorderArt, nil)
+            pcall(bagsBarBlizz.BorderArt.SetAlpha, bagsBarBlizz.BorderArt, 0)
+            pcall(bagsBarBlizz.BorderArt.Hide, bagsBarBlizz.BorderArt)
+        end
+        if bagsBarBlizz.BackgroundArt then
+            pcall(bagsBarBlizz.BackgroundArt.SetTexture, bagsBarBlizz.BackgroundArt, nil)
+            pcall(bagsBarBlizz.BackgroundArt.SetAlpha, bagsBarBlizz.BackgroundArt, 0)
+            pcall(bagsBarBlizz.BackgroundArt.Hide, bagsBarBlizz.BackgroundArt)
+        end
+        bagsBarBlizz:SetAlpha(0)
+        bagsBarBlizz:Hide()
+        SuppressBlizzardFrame(bagsBarBlizz)
+    end
+end
+
+--[[-----------------------------------------------------------------------------
+    8c. Shaman Totem Bar & Paladin Aura Support
+-------------------------------------------------------------------------------]]
+function Core:LayoutTotemBar()
+    local barFrame = bars.totemBar
+    if not barFrame then return end
+    if InCombatLockdown() then
+        self._needsLayoutUpdate = true
+        return
+    end
+
+    local db = BleakfibersActionBarsDB
+    local cfg = db and db.totemBar or {}
+
+    if not cfg.enabled then
+        barFrame:Hide()
+        if barFrame._moverOverlay then barFrame._moverOverlay:Hide() end
+        if MultiCastActionBarFrame then MultiCastActionBarFrame:Hide() end
+        if TotemFrame then TotemFrame:Hide() end
+        return
+    end
+
+    local scale = (cfg.scale or 100) / 100
+    local alpha = (cfg.alpha or 100) / 100
+
+    barFrame:SetScale(scale)
+    barFrame:SetAlpha(alpha)
+    barFrame:SetFrameStrata(cfg.frameStrata or "LOW")
+    barFrame:SetFrameLevel(cfg.frameLevel or 1)
+    barFrame:EnableMouse(not cfg.clickThrough)
+    if barFrame.backdrop then
+        barFrame.backdrop:SetShown(cfg.backdrop ~= false)
+    end
+    barFrame:Show()
+
+    local btnSize = cfg.buttonSize or 30
+    local spacing = cfg.buttonSpacing or 4
+
+    if MultiCastActionBarFrame then
+        MultiCastActionBarFrame:SetParent(barFrame)
+        MultiCastActionBarFrame:ClearAllPoints()
+        MultiCastActionBarFrame:SetPoint("BOTTOMLEFT", barFrame, "BOTTOMLEFT", 0, 0)
+        MultiCastActionBarFrame:SetScale(1.0)
+        MultiCastActionBarFrame:Show()
+
+        local mcButtons = {
+            _G.MultiCastRecallSpellButton,
+            _G.MultiCastSummonSpellButton,
+            _G.MultiCastSlotButton1,
+            _G.MultiCastSlotButton2,
+            _G.MultiCastSlotButton3,
+            _G.MultiCastSlotButton4,
+            _G.MultiCastActionButton1,
+            _G.MultiCastActionButton2,
+            _G.MultiCastActionButton3,
+            _G.MultiCastActionButton4,
+        }
+        for _, btn in ipairs(mcButtons) do
+            if btn then
+                self:SkinButton(btn)
+                btn:SetSize(btnSize, btnSize)
+                self:HookButtonMouseover(btn, barFrame, "totemBar")
+            end
+        end
+
+        local totalWidth = (4 * btnSize) + (3 * spacing) + 30
+        local totalHeight = btnSize + 4
+        barFrame:SetSize(max(100, totalWidth), max(30, totalHeight))
+        if barFrame._moverOverlay then
+            barFrame._moverOverlay:SetSize(max(100, totalWidth), max(30, totalHeight))
+        end
+    elseif TotemFrame then
+        TotemFrame:SetParent(barFrame)
+        TotemFrame:ClearAllPoints()
+        TotemFrame:SetPoint("BOTTOMLEFT", barFrame, "BOTTOMLEFT", 0, 0)
+        TotemFrame:Show()
+        barFrame:SetSize(128, 40)
+        if barFrame._moverOverlay then
+            barFrame._moverOverlay:SetSize(128, 40)
+        end
+    end
+end
+
+--[[-----------------------------------------------------------------------------
+    8d. Cast On Key Down Support (ActionButtonUseKeyDown CVar)
+-------------------------------------------------------------------------------]]
+function Core:ApplyCastOnKeyDown()
+    local db = BleakfibersActionBarsDB
+    local useKeyDown = (db and db.general and db.general.castOnKeyDown ~= false)
+    if SetCVar then
+        pcall(SetCVar, "ActionButtonUseKeyDown", useKeyDown and "1" or "0")
+    end
+
+    local clickType = useKeyDown and "AnyDown" or "AnyUp"
+    for btn in pairs(skinnedButtons) do
+        if btn and btn.RegisterForClicks and not InCombatLockdown() then
+            pcall(btn.RegisterForClicks, btn, clickType)
+        end
+    end
+end
+
+--[[-----------------------------------------------------------------------------
     9. Mouseover Fading & Out-of-Combat Alpha Transitions
 -------------------------------------------------------------------------------]]
 local function IsMouseOverFrame(frame)
@@ -2239,6 +2723,12 @@ function Core:OnSettingChanged(section, key, value)
             self:UpdateAllCooldownFonts()
         elseif key:find("Font") or key:find("Text") or key == "abbreviateHotkey" or key == "zoomIcons" or key == "countFontSize" or key == "macroFontSize" then
             self:SkinAllButtons()
+        elseif key == "castOnKeyDown" then
+            self:ApplyCastOnKeyDown()
+        elseif key == "procGlow" then
+            for btn in pairs(skinnedButtons) do
+                if btn then self:AdjustOverlayGlow(btn) end
+            end
         elseif key == "rangeColor" or key == "manaColor" or key == "unusableColor" or key == "rangeDesaturate" then
             for barIdx = 1, 15 do
                 for i = 1, 12 do
@@ -2270,6 +2760,7 @@ Core:RegisterEvent("UNIT_EXITED_VEHICLE")
 Core:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 Core:RegisterEvent("UPDATE_POSSESS_BAR")
 Core:RegisterEvent("PET_BAR_UPDATE")
+Core:RegisterEvent("PLAYER_TOTEM_UPDATE")
 Core:RegisterEvent("ADDON_LOADED")
 
 Core:SetScript("OnEvent", function(self, event, ...)
@@ -2283,6 +2774,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
         self:SkinAllButtons()
         self:HookIndicatorColors()
         self:HookOverlayGlow()
+        self:ApplyCastOnKeyDown()
 
         local gen = BleakfibersActionBarsDB and BleakfibersActionBarsDB.general
         if gen and gen.lockPositions ~= nil then
@@ -2395,6 +2887,8 @@ Core:SetScript("OnEvent", function(self, event, ...)
         self:HideBlizzardArt()
         self:LayoutVehicleLeave()
         self:LayoutExtraBar()
+        if self.LayoutTotemBar then self:LayoutTotemBar() end
+        if self.LayoutBagsBar then self:LayoutBagsBar() end
         for i = 1, 12 do
             local btn = _G["ActionButton" .. i]
             if btn then self:UpdateButtonVisuals(btn) end
@@ -2406,11 +2900,15 @@ Core:SetScript("OnEvent", function(self, event, ...)
                 self:UpdateButtonVisuals(btn, BleakfibersActionBarsDB and BleakfibersActionBarsDB.petBar)
             end
         end
+    elseif event == "PLAYER_TOTEM_UPDATE" then
+        if self.LayoutTotemBar then self:LayoutTotemBar() end
     elseif event == "ADDON_LOADED" then
         local loadedAddon = ...
         if loadedAddon == "Blizzard_MicroMenu" or loadedAddon == "Blizzard_MainMenuBarBagButtons" then
             self:HideBlizzardArt()
             self:LayoutMicroBar()
+            if self.LayoutBagsBar then self:LayoutBagsBar() end
+            if self.LayoutTotemBar then self:LayoutTotemBar() end
         end
     end
 end)
