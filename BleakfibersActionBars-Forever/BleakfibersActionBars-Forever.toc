@@ -5,6 +5,7 @@
 ## Version: 1.1.4
 ## SavedVariables: BleakfibersActionBarsDB
 ## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3, LibSharedMedia-3.0
+## X-License: Restricted - Source Available (All Rights Reserved, No Derivatives)
 
 # Embedded Libraries
 Libs\Libs.xml
