@@ -2,7 +2,7 @@
 ## Title: |cff3399ffBleakfiber's|r |cffffffffActionBars|r - |cffffd100Forever|r
 ## Notes: Modular, minimalist standalone action bar suite for World of Warcraft Forever.
 ## Author: Bleakfiber
-## Version: 1.1.3
+## Version: 1.1.4
 ## SavedVariables: BleakfibersActionBarsDB
 ## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3, LibSharedMedia-3.0
 

@@ -404,6 +404,13 @@ function UI:BuildOptions(parentContainer, isMasterHub)
         realConfig:InitDB()
     end
 
+    if BAB.Core and BAB.Core.ApplyAllMoverPositions then
+        BAB.Core:ApplyAllMoverPositions()
+    end
+    if BAB.Core and BAB.Core.LayoutBagsBar then
+        BAB.Core:LayoutBagsBar()
+    end
+
     registeredWidgets = {}
 
     local subtext = parentContainer:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")

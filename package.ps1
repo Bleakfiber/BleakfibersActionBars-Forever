@@ -80,6 +80,12 @@ $zipPath = Join-Path $zipsDir $zipName
 Write-Host "Creating archive zips/$zipName..." -ForegroundColor Cyan
 Compress-Archive -Path $addonDir -DestinationPath $zipPath -Force
 
+# Clean up any duplicate zip files from the root directory
+Get-ChildItem -Path $rootDir -Filter "*.zip" -File | ForEach-Object {
+    Remove-Item $_.FullName -Force
+    Write-Host "Deleted duplicate root zip: $($_.Name)" -ForegroundColor Yellow
+}
+
 $changelogsDir = Join-Path $rootDir "changelogs"
 if (Test-Path $changelogsDir) {
     Copy-Item -Path $changelogFile -Destination (Join-Path $changelogsDir "changelog.md") -Force

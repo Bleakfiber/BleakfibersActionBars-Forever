@@ -610,6 +610,16 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 resetMovers = ResetMoversHook,
                 isMoversUnlocked = IsMoversUnlockedHook,
                 refresh = function()
+                    local core = BAB.Core or _G["BleakfibersActionBarsCore"]
+                    if core and core.ApplyAllMoverPositions then
+                        core:ApplyAllMoverPositions()
+                    end
+                    if core and core.LayoutBagsBar then
+                        core:LayoutBagsBar()
+                    end
+                    if core and core.UpdateAllBars then
+                        core:UpdateAllBars()
+                    end
                     local ui = BAB.UI or _G["BleakfibersActionBarsUI"]
                     if ui and ui.Refresh then ui:Refresh() end
                 end,

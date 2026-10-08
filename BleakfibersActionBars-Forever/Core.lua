@@ -302,7 +302,8 @@ local function CreateMoverOverlay(moverData)
     overlay:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local point, _, relPoint, x, y = self:GetPoint()
-        Core:SaveMoverPosition(key, point, x, y)
+        relPoint = relPoint or point
+        Core:SaveMoverPosition(key, point, x, y, relPoint)
         target:ClearAllPoints()
         target:SetPoint(point, UIParent, relPoint, x, y)
     end)
@@ -313,7 +314,7 @@ local function CreateMoverOverlay(moverData)
     return overlay
 end
 
-function Core:RegisterMover(frame, displayName, key, defaultPoint, defaultX, defaultY)
+function Core:RegisterMover(frame, displayName, key, defaultPoint, defaultX, defaultY, defaultRelPoint)
     if not frame or not key then return end
 
     registeredMovers[key] = {
@@ -321,6 +322,7 @@ function Core:RegisterMover(frame, displayName, key, defaultPoint, defaultX, def
         displayName = displayName or key,
         key = key,
         defaultPoint = defaultPoint or "CENTER",
+        defaultRelPoint = defaultRelPoint or defaultPoint or "CENTER",
         defaultX = defaultX or 0,
         defaultY = defaultY or 0,
     }
@@ -328,16 +330,26 @@ function Core:RegisterMover(frame, displayName, key, defaultPoint, defaultX, def
     self:ApplyMoverPosition(key, frame)
 end
 
-function Core:SaveMoverPosition(key, point, x, y)
+function Core:SaveMoverPosition(key, point, x, y, relPoint)
     if not BleakfibersActionBarsDB then return end
     if not BleakfibersActionBarsDB.movers then
         BleakfibersActionBarsDB.movers = {}
     end
+    relPoint = relPoint or point
     BleakfibersActionBarsDB.movers[key] = {
         point = point,
+        relPoint = relPoint,
         x = floor(x + 0.5),
         y = floor(y + 0.5),
     }
+
+    local activeProf = Config and Config.GetActiveProfile and Config:GetActiveProfile()
+    if BleakfibersActionBarsDB.profiles and activeProf and BleakfibersActionBarsDB.profiles[activeProf] then
+        if not BleakfibersActionBarsDB.profiles[activeProf].movers then
+            BleakfibersActionBarsDB.profiles[activeProf].movers = {}
+        end
+        BleakfibersActionBarsDB.profiles[activeProf].movers[key] = BleakfibersActionBarsDB.movers[key]
+    end
 end
 
 function Core:ApplyMoverPosition(key, frame)
@@ -349,9 +361,9 @@ function Core:ApplyMoverPosition(key, frame)
     local saved = BleakfibersActionBarsDB and BleakfibersActionBarsDB.movers and BleakfibersActionBarsDB.movers[key]
     frame:ClearAllPoints()
     if saved and saved.point then
-        frame:SetPoint(saved.point, UIParent, saved.point, saved.x, saved.y)
+        frame:SetPoint(saved.point, UIParent, saved.relPoint or saved.point, saved.x, saved.y)
     else
-        frame:SetPoint(mover.defaultPoint, UIParent, mover.defaultPoint, mover.defaultX, mover.defaultY)
+        frame:SetPoint(mover.defaultPoint, UIParent, mover.defaultRelPoint or mover.defaultPoint, mover.defaultX, mover.defaultY)
     end
 end
 
@@ -366,15 +378,19 @@ end
 function Core:ResetMovers()
     if BleakfibersActionBarsDB then
         BleakfibersActionBarsDB.movers = {}
+        local activeProf = Config and Config.GetActiveProfile and Config:GetActiveProfile()
+        if BleakfibersActionBarsDB.profiles and activeProf and BleakfibersActionBarsDB.profiles[activeProf] then
+            BleakfibersActionBarsDB.profiles[activeProf].movers = {}
+        end
     end
     for key, mover in pairs(registeredMovers) do
         if mover.frame then
             mover.frame:ClearAllPoints()
-            mover.frame:SetPoint(mover.defaultPoint, UIParent, mover.defaultPoint, mover.defaultX, mover.defaultY)
+            mover.frame:SetPoint(mover.defaultPoint, UIParent, mover.defaultRelPoint or mover.defaultPoint, mover.defaultX, mover.defaultY)
         end
         if mover.overlay then
             mover.overlay:ClearAllPoints()
-            mover.overlay:SetPoint(mover.defaultPoint, UIParent, mover.defaultPoint, mover.defaultX, mover.defaultY)
+            mover.overlay:SetPoint(mover.defaultPoint, UIParent, mover.defaultRelPoint or mover.defaultPoint, mover.defaultX, mover.defaultY)
         end
     end
     DEFAULT_CHAT_FRAME:AddMessage("|cff3399ff[Bleakfiber's Action Bars]|r All action bar positions reset to defaults.")
@@ -957,6 +973,7 @@ function Core:HideBlizzardArt()
             SuppressBlizzardFrame(bb)
         end
     end
+    if self.HookBlizzardBagsBar then self:HookBlizzardBagsBar() end
 
     local multiBars = {
         _G.MultiBarBottomLeft,
@@ -2356,6 +2373,88 @@ function Core:SkinBagButton(btn)
     end
 end
 
+local isPositioningBags = false
+local bagLayoutQueued = false
+
+local function QueueBagsBarLayout()
+    if bagLayoutQueued or InCombatLockdown() then return end
+    bagLayoutQueued = true
+    C_Timer.After(0, function()
+        bagLayoutQueued = false
+        if not InCombatLockdown() and not isPositioningBags then
+            local db = BleakfibersActionBarsDB
+            if db and db.bagsBar and db.bagsBar.enabled ~= false and Core.LayoutBagsBar then
+                Core:LayoutBagsBar()
+            end
+        end
+    end)
+end
+
+local function HookBagButtonProtection(btn)
+    if not btn or btn._buiProtectedHooked then return end
+    btn._buiProtectedHooked = true
+
+    hooksecurefunc(btn, "ClearAllPoints", function(self)
+        if isPositioningBags or InCombatLockdown() then return end
+        local db = BleakfibersActionBarsDB
+        if db and db.bagsBar and db.bagsBar.enabled ~= false and bars.bagsBar then
+            QueueBagsBarLayout()
+        end
+    end)
+
+    hooksecurefunc(btn, "SetPoint", function(self)
+        if isPositioningBags or InCombatLockdown() then return end
+        local db = BleakfibersActionBarsDB
+        if db and db.bagsBar and db.bagsBar.enabled ~= false and bars.bagsBar then
+            local _, relTo = self:GetPoint()
+            if relTo ~= bars.bagsBar then
+                QueueBagsBarLayout()
+            end
+        end
+    end)
+
+    hooksecurefunc(btn, "SetParent", function(self, newParent)
+        if isPositioningBags or InCombatLockdown() then return end
+        local db = BleakfibersActionBarsDB
+        if db and db.bagsBar and db.bagsBar.enabled ~= false and bars.bagsBar then
+            if newParent ~= bars.bagsBar then
+                QueueBagsBarLayout()
+            end
+        end
+    end)
+end
+
+function Core:HookBlizzardBagsBar()
+    local onLayout = function()
+        if not InCombatLockdown() and not isPositioningBags then
+            local db = BleakfibersActionBarsDB
+            if db and db.bagsBar and db.bagsBar.enabled ~= false then
+                QueueBagsBarLayout()
+            end
+        end
+    end
+
+    if _G.BagsBar and _G.BagsBar.Layout and not self._buiBagsBarLayoutHooked then
+        self._buiBagsBarLayoutHooked = true
+        hooksecurefunc(_G.BagsBar, "Layout", onLayout)
+    end
+
+    if _G.BagsBarMixin and _G.BagsBarMixin.Layout and not self._buiBagsBarMixinLayoutHooked then
+        self._buiBagsBarMixinLayoutHooked = true
+        hooksecurefunc(_G.BagsBarMixin, "Layout", onLayout)
+    end
+
+    if _G.MainMenuBarBagManager and _G.MainMenuBarBagManager.OnExpandBarChanged and not self._buiBagManagerHooked then
+        self._buiBagManagerHooked = true
+        hooksecurefunc(_G.MainMenuBarBagManager, "OnExpandBarChanged", onLayout)
+    end
+
+    if EventRegistry and EventRegistry.RegisterCallback and not self._buiExpandEventHooked then
+        self._buiExpandEventHooked = true
+        EventRegistry:RegisterCallback("MainMenuBarManager.OnExpandChanged", onLayout, self)
+    end
+end
+
 function Core:LayoutBagsBar()
     local barFrame = bars.bagsBar
     if not barFrame then return end
@@ -2386,6 +2485,10 @@ function Core:LayoutBagsBar()
         return
     end
 
+    if not moversUnlocked then
+        self:ApplyMoverPosition("BagsBar", barFrame)
+    end
+
     local isVertical = (cfg.orientation == "VERTICAL")
     local perRow = isVertical and 1 or min(numButtons, cfg.buttonsPerRow or 6)
     if perRow < 1 then perRow = 1 end
@@ -2413,6 +2516,7 @@ function Core:LayoutBagsBar()
     end
     barFrame:Show()
 
+    isPositioningBags = true
     for i = 1, numButtons do
         local btn = buttons[i]
         local row = math.floor((i - 1) / perRow)
@@ -2428,9 +2532,11 @@ function Core:LayoutBagsBar()
 
         self:SkinBagButton(btn)
         self:HookButtonMouseover(btn, barFrame, "bagsBar")
+        HookBagButtonProtection(btn)
         btn:SetAlpha(1)
         btn:Show()
     end
+    isPositioningBags = false
 
     if bagsBarBlizz then
         if bagsBarBlizz.BorderArt then
@@ -2447,6 +2553,8 @@ function Core:LayoutBagsBar()
         bagsBarBlizz:Hide()
         SuppressBlizzardFrame(bagsBarBlizz)
     end
+
+    self:HookBlizzardBagsBar()
 end
 
 --[[-----------------------------------------------------------------------------
@@ -2928,6 +3036,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
         if loadedAddon == "Blizzard_MicroMenu" or loadedAddon == "Blizzard_MainMenuBarBagButtons" then
             self:HideBlizzardArt()
             self:LayoutMicroBar()
+            if self.HookBlizzardBagsBar then self:HookBlizzardBagsBar() end
             if self.LayoutBagsBar then self:LayoutBagsBar() end
             if self.LayoutTotemBar then self:LayoutTotemBar() end
         end
