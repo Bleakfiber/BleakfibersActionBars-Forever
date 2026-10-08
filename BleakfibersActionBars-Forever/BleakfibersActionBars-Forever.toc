@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: |cff3399ffBleakfiber's|r |cffffffffActionBars|r - |cffffd100Forever|r
+## Notes: Modular, minimalist standalone action bar suite for World of Warcraft Forever.
+## Author: Bleakfiber
+## Version: 1.0.1
+## SavedVariables: BleakfibersActionBarsDB
+## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3, LibSharedMedia-3.0
+
+# Embedded Libraries
+Libs\Libs.xml
+
+# Media Registration
+Media\Media.lua
+
+# Data Layer (Database, Defaults, Slash Commands, Master Hub Registration)
+Config.lua
+
+# Core Framework & Gameplay Logic
+Core.lua
+
+# Presentation Layer (Options UI)
+UI.lua

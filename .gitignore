@@ -1,0 +1,11 @@
+# Changelog
+changelog.md
+changelog/
+changelogs/
+*changelog*
+
+# Zip archives & folders
+*.zip
+zip/
+zips/
+
