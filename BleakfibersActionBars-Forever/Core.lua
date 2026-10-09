@@ -1073,25 +1073,25 @@ function Core:ShowCustomProcGlow(btn)
         glow:SetFrameLevel(btn:GetFrameLevel() + 5)
 
         local top = glow:CreateTexture(nil, "OVERLAY")
-        top:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        top:SetColorTexture(C.COLOR_GOLD.r, C.COLOR_GOLD.g, C.COLOR_GOLD.b, 1.0)
         top:SetPoint("TOPLEFT", glow, "TOPLEFT", 0, 0)
         top:SetPoint("TOPRIGHT", glow, "TOPRIGHT", 0, 0)
         top:SetHeight(2)
 
         local bottom = glow:CreateTexture(nil, "OVERLAY")
-        bottom:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        bottom:SetColorTexture(C.COLOR_GOLD.r, C.COLOR_GOLD.g, C.COLOR_GOLD.b, 1.0)
         bottom:SetPoint("BOTTOMLEFT", glow, "BOTTOMLEFT", 0, 0)
         bottom:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT", 0, 0)
         bottom:SetHeight(2)
 
         local left = glow:CreateTexture(nil, "OVERLAY")
-        left:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        left:SetColorTexture(C.COLOR_GOLD.r, C.COLOR_GOLD.g, C.COLOR_GOLD.b, 1.0)
         left:SetPoint("TOPLEFT", glow, "TOPLEFT", 0, 0)
         left:SetPoint("BOTTOMLEFT", glow, "BOTTOMLEFT", 0, 0)
         left:SetWidth(2)
 
         local right = glow:CreateTexture(nil, "OVERLAY")
-        right:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 1.0)
+        right:SetColorTexture(C.COLOR_GOLD.r, C.COLOR_GOLD.g, C.COLOR_GOLD.b, 1.0)
         right:SetPoint("TOPRIGHT", glow, "TOPRIGHT", 0, 0)
         right:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT", 0, 0)
         right:SetWidth(2)
@@ -1228,7 +1228,7 @@ function Core:TriggerCooldownPulse(btn)
 
         local glow = pulse:CreateTexture(nil, "OVERLAY", nil, 1)
         glow:SetAllPoints()
-        glow:SetColorTexture(C.COLOR_GOLD[1], C.COLOR_GOLD[2], C.COLOR_GOLD[3], 0.35)
+        glow:SetColorTexture(C.COLOR_GOLD.r, C.COLOR_GOLD.g, C.COLOR_GOLD.b, 0.35)
         glow:SetBlendMode("ADD")
         pulse.glow = glow
 
