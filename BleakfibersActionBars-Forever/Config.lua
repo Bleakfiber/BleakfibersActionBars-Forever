@@ -36,6 +36,7 @@ local DB_DEFAULTS = {
         hotkeyFontSize = 14,
         countFontSize = 14,
         macroFontSize = 10,
+        fontOutline = "OUTLINE",
         hideKeybindText = false,
         hideMacroText = false,
         hideCountText = false,

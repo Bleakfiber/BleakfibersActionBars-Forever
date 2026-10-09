@@ -1484,8 +1484,10 @@ function Core:UpdateButtonVisuals(btn, barConfig)
         else
             local fontName = barConfig.hotkeyFont or gen.headerFont or C.FONT_HEADER
             local fontSize = barConfig.hotkeyFontSize or gen.hotkeyFontSize or 14
+            local fontOutline = barConfig.fontOutline or gen.fontOutline or "OUTLINE"
+            if fontOutline == "NONE" or fontOutline == "None" then fontOutline = "" end
             local fontFile = BAB:FetchFont(fontName)
-            hk:SetFont(fontFile, fontSize, "OUTLINE")
+            hk:SetFont(fontFile, fontSize, fontOutline)
             hk:ClearAllPoints()
             hk:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -2, -3)
 
@@ -1510,8 +1512,10 @@ function Core:UpdateButtonVisuals(btn, barConfig)
         else
             local fontName = barConfig.countFont or gen.headerFont or C.FONT_HEADER
             local fontSize = barConfig.countFontSize or gen.countFontSize or 14
+            local fontOutline = barConfig.fontOutline or gen.fontOutline or "OUTLINE"
+            if fontOutline == "NONE" or fontOutline == "None" then fontOutline = "" end
             local fontFile = BAB:FetchFont(fontName)
-            cnt:SetFont(fontFile, fontSize, "OUTLINE")
+            cnt:SetFont(fontFile, fontSize, fontOutline)
             cnt:ClearAllPoints()
             cnt:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
             cnt:Show()
@@ -1526,8 +1530,10 @@ function Core:UpdateButtonVisuals(btn, barConfig)
         else
             local fontName = barConfig.macroFont or gen.font or C.FONT_DEFAULT
             local fontSize = barConfig.macroFontSize or gen.macroFontSize or 9
+            local fontOutline = barConfig.fontOutline or gen.fontOutline or "OUTLINE"
+            if fontOutline == "NONE" or fontOutline == "None" then fontOutline = "" end
             local fontFile = BAB:FetchFont(fontName)
-            name:SetFont(fontFile, fontSize, "OUTLINE")
+            name:SetFont(fontFile, fontSize, fontOutline)
             name:ClearAllPoints()
             name:SetPoint("BOTTOM", btn, "BOTTOM", 0, 1)
             name:Show()
@@ -2850,7 +2856,7 @@ function Core:OnSettingChanged(section, key, value)
             SetCVar("lockActionBars", value and "1" or "0")
         elseif key == "cooldownText" or key:find("cooldown") or key:find("Cooldown") then
             self:UpdateAllCooldownFonts()
-        elseif key:find("Font") or key:find("Text") or key == "abbreviateHotkey" or key == "zoomIcons" or key == "countFontSize" or key == "macroFontSize" then
+        elseif key:find("Font") or key:find("Outline") or key == "font" or key == "fontOutline" or key:find("Text") or key == "abbreviateHotkey" or key == "zoomIcons" or key == "countFontSize" or key == "macroFontSize" then
             self:SkinAllButtons()
         elseif key == "castOnKeyDown" then
             self:ApplyCastOnKeyDown()

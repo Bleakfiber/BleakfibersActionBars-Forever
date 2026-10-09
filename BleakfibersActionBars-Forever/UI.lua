@@ -207,55 +207,342 @@ function UI:CreateSlider(parent, name, labelText, minVal, maxVal, step, x, y, ge
 end
 
 --[[-----------------------------------------------------------------------------
-    Widget Factory: Dropdown
+    Widget Factory: Dropdown & Font Dropdown (Dark Slate & Gold)
 -------------------------------------------------------------------------------]]
-function UI:CreateDropdown(parent, name, labelText, items, x, y, width, getFunc, setFunc)
+local sharedDropdownMenu = nil
+local sharedDropdownCatcher = nil
+
+local function GetOrCreateLocalDropdownMenu()
+    if sharedDropdownMenu then return sharedDropdownMenu end
+
+    sharedDropdownCatcher = CreateFrame("Button", "BAB_DropdownCatcher", UIParent)
+    sharedDropdownCatcher:SetFrameStrata("FULLSCREEN_DIALOG")
+    sharedDropdownCatcher:SetFrameLevel(98)
+    sharedDropdownCatcher:SetAllPoints(UIParent)
+    sharedDropdownCatcher:EnableMouse(true)
+    sharedDropdownCatcher:Hide()
+    sharedDropdownCatcher:SetScript("OnClick", function()
+        if sharedDropdownMenu then sharedDropdownMenu:Hide() end
+    end)
+
+    local menu = CreateFrame("Frame", "BAB_DropdownMenu", UIParent, BACKDROP_TEMPLATE)
+    menu:SetFrameStrata("FULLSCREEN_DIALOG")
+    menu:SetFrameLevel(99)
+    menu:SetClampedToScreen(true)
+    menu:SetBackdrop(INSET_BACKDROP)
+    menu:SetBackdropColor(0.08, 0.10, 0.13, 0.98)
+    menu:SetBackdropBorderColor(unpack(COLORS.goldBorder))
+    menu:EnableMouse(true)
+    menu:Hide()
+
+    menu:SetScript("OnShow", function()
+        sharedDropdownCatcher:Show()
+    end)
+    menu:SetScript("OnHide", function()
+        sharedDropdownCatcher:Hide()
+    end)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "BAB_DropdownScrollFrame", menu, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", menu, "TOPLEFT", 4, -4)
+    scrollFrame:SetPoint("BOTTOMRIGHT", menu, "BOTTOMRIGHT", -22, 4)
+    menu.scrollFrame = scrollFrame
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetSize(150, 100)
+    scrollFrame:SetScrollChild(scrollChild)
+    menu.scrollChild = scrollChild
+
+    scrollFrame:EnableMouseWheel(true)
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local cur = self:GetVerticalScroll()
+        local maxS = math.max(0, scrollChild:GetHeight() - self:GetHeight())
+        local newS = math.min(maxS, math.max(0, cur - (delta * 22)))
+        self:SetVerticalScroll(newS)
+    end)
+
+    menu.buttons = {}
+    sharedDropdownMenu = menu
+    return menu
+end
+
+local function NormalizeDropdownItems(items)
+    local list = {}
+    if type(items) == "table" then
+        if #items > 0 then
+            for _, item in ipairs(items) do
+                if type(item) == "table" then
+                    local val = (item.value ~= nil) and item.value or ((item.key ~= nil) and item.key or item[1])
+                    local text = item.text or item.label or item[2] or tostring(val)
+                    table.insert(list, { value = val, text = text })
+                else
+                    table.insert(list, { value = item, text = tostring(item) })
+                end
+            end
+        else
+            for k, v in pairs(items) do
+                table.insert(list, { value = k, text = tostring(v) })
+            end
+            table.sort(list, function(a, b) return a.text:lower() < b.text:lower() end)
+        end
+    end
+    return list
+end
+
+function UI:GetAvailableFonts()
+    local fonts = {}
+    local seen = {}
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM and LSM.List then
+        local lsmList = LSM:List("font")
+        if lsmList then
+            for _, f in ipairs(lsmList) do
+                if not seen[f] then
+                    table.insert(fonts, { value = f, text = f })
+                    seen[f] = true
+                end
+            end
+        end
+    end
+    local standardFonts = {
+        "Nata Sans Regular", "Nata Sans Bold", "Nata Sans Medium",
+        "Orbitron Regular", "Orbitron Bold",
+        "Roboto Condensed Regular", "Roboto Condensed Bold",
+        "Friz Quadrata TT", "Arial Narrow", "Skurri", "Morpheus"
+    }
+    for _, f in ipairs(standardFonts) do
+        if not seen[f] then
+            table.insert(fonts, { value = f, text = f })
+            seen[f] = true
+        end
+    end
+    table.sort(fonts, function(a, b) return a.text:lower() < b.text:lower() end)
+    return fonts
+end
+
+function UI:CreateDropdown(parent, name, labelText, items, x, y, width, getFunc, setFunc, tooltip, isFont)
     width = width or 150
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    local container = CreateFrame("Frame", name .. "Container", parent)
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+    container:SetSize(width, 42)
+
+    local label = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
     label:SetText(labelText)
     label:SetTextColor(COLORS.goldText[1], COLORS.goldText[2], COLORS.goldText[3])
+    container.label = label
 
-    local dd = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
-    dd:SetPoint("TOPLEFT", label, "BOTTOMLEFT", -16, -2)
-    UIDropDownMenu_SetWidth(dd, width)
+    local btn = CreateFrame("Button", name, container, BACKDROP_TEMPLATE)
+    btn:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
+    btn:SetSize(width, 22)
+    btn:SetBackdrop(INSET_BACKDROP)
+    btn:SetBackdropColor(unpack(COLORS.tabNormal))
+    btn:SetBackdropBorderColor(unpack(COLORS.goldMuted))
+    container.button = btn
 
-    local function OnClick(self)
-        UIDropDownMenu_SetSelectedValue(dd, self.value)
-        UIDropDownMenu_SetText(dd, items[self.value] or tostring(self.value))
-        if setFunc then
-            setFunc(self.value)
+    local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    btnText:SetPoint("LEFT", btn, "LEFT", 8, 0)
+    btnText:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+    btnText:SetJustifyH("LEFT")
+    btnText:SetWordWrap(false)
+    btn.text = btnText
+
+    local arrow = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    arrow:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+    arrow:SetText("|cFFFFD100▼|r")
+
+    local function GetItemsList()
+        if type(items) == "function" then
+            return NormalizeDropdownItems(items())
         end
+        return NormalizeDropdownItems(items)
     end
 
-    local function Init(self, level)
-        local cur = getFunc and getFunc()
-        for val, text in pairs(items) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = text
-            info.value = val
-            info.func = OnClick
-            info.checked = (val == cur)
-            UIDropDownMenu_AddButton(info, level)
+    local function GetItemText(val)
+        local curItems = GetItemsList()
+        for _, itm in ipairs(curItems) do
+            if itm.value == val then
+                return itm.text
+            end
         end
+        return tostring(val or "")
     end
 
-    UIDropDownMenu_Initialize(dd, Init)
-    local curVal = getFunc and getFunc()
-    UIDropDownMenu_SetSelectedValue(dd, curVal)
-    UIDropDownMenu_SetText(dd, items[curVal] or tostring(curVal))
+    local function UpdateButtonText()
+        local curVal = getFunc and getFunc()
+        btnText:SetText(GetItemText(curVal))
+        if isFont then
+            local fontPath = BAB:FetchFont(curVal)
+            if fontPath then
+                pcall(function() btnText:SetFont(fontPath, 11, "") end)
+            end
+        end
+    end
+    UpdateButtonText()
+
+    btn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.20, 0.22, 0.28, 0.95)
+        self:SetBackdropBorderColor(unpack(COLORS.goldBorder))
+        if tooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine(labelText, COLORS.goldText[1], COLORS.goldText[2], COLORS.goldText[3])
+            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(unpack(COLORS.tabNormal))
+        self:SetBackdropBorderColor(unpack(COLORS.goldMuted))
+        if tooltip then GameTooltip:Hide() end
+    end)
+
+    btn:SetScript("OnClick", function(self)
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856)
+        local menu = GetOrCreateLocalDropdownMenu()
+        if menu:IsShown() and menu.currentButton == self then
+            menu:Hide()
+            return
+        end
+
+        local curItems = GetItemsList()
+        local curVal = getFunc and getFunc()
+        menu.currentButton = self
+
+        for _, b in ipairs(menu.buttons) do b:Hide() end
+
+        local btnHeight = 22
+        local maxVisible = 8
+        local visibleCount = math.min(#curItems, maxVisible)
+        local menuWidth = math.max(width, 160)
+        local totalContentHeight = #curItems * btnHeight
+
+        local hasScroll = (#curItems > maxVisible)
+        menu.scrollChild:SetSize(menuWidth - (hasScroll and 28 or 10), totalContentHeight)
+
+        local scrollBar = _G["BAB_DropdownScrollFrameScrollBar"]
+        if scrollBar then
+            if hasScroll then
+                scrollBar:Show()
+                menu.scrollFrame:SetPoint("BOTTOMRIGHT", menu, "BOTTOMRIGHT", -22, 4)
+            else
+                scrollBar:Hide()
+                menu.scrollFrame:SetPoint("BOTTOMRIGHT", menu, "BOTTOMRIGHT", -4, 4)
+            end
+        end
+
+        local selectedIndex = 1
+
+        for i, itm in ipairs(curItems) do
+            local b = menu.buttons[i]
+            if not b then
+                b = CreateFrame("Button", nil, menu.scrollChild, BACKDROP_TEMPLATE)
+                b:SetHeight(btnHeight)
+                b:SetBackdrop(INSET_BACKDROP)
+
+                b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                b.text:SetPoint("LEFT", b, "LEFT", 8, 0)
+                b.text:SetPoint("RIGHT", b, "RIGHT", -8, 0)
+                b.text:SetJustifyH("LEFT")
+
+                b:SetScript("OnEnter", function(s)
+                    s:SetBackdropColor(0.20, 0.22, 0.28, 0.95)
+                    s:SetBackdropBorderColor(unpack(COLORS.goldBorder))
+                end)
+                b:SetScript("OnLeave", function(s)
+                    if s.isActive then
+                        s:SetBackdropColor(0.22, 0.19, 0.12, 0.95)
+                        s:SetBackdropBorderColor(unpack(COLORS.goldBorder))
+                    else
+                        s:SetBackdropColor(0.10, 0.12, 0.15, 0.50)
+                        s:SetBackdropBorderColor(unpack(COLORS.goldMuted))
+                    end
+                end)
+                menu.buttons[i] = b
+            end
+
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", menu.scrollChild, "TOPLEFT", 2, -((i - 1) * btnHeight))
+            b:SetPoint("RIGHT", menu.scrollChild, "RIGHT", -2, 0)
+
+            local isActive = (itm.value == curVal)
+            b.isActive = isActive
+            if isActive then
+                selectedIndex = i
+                b.text:SetText("|cFFFFD100✔ |r" .. itm.text)
+                b:SetBackdropColor(0.22, 0.19, 0.12, 0.95)
+                b:SetBackdropBorderColor(unpack(COLORS.goldBorder))
+            else
+                b.text:SetText("   " .. itm.text)
+                b:SetBackdropColor(0.10, 0.12, 0.15, 0.50)
+                b:SetBackdropBorderColor(unpack(COLORS.goldMuted))
+            end
+
+            if isFont then
+                local fPath = BAB:FetchFont(itm.value)
+                if fPath then
+                    pcall(function() b.text:SetFont(fPath, 11, "") end)
+                end
+            else
+                b.text:SetFontObject("GameFontHighlightSmall")
+            end
+
+            local chosenValue = itm.value
+            b:SetScript("OnClick", function()
+                PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856)
+                if setFunc then
+                    setFunc(chosenValue)
+                end
+                UpdateButtonText()
+                menu:Hide()
+            end)
+            b:Show()
+        end
+
+        local menuHeight = (visibleCount * btnHeight) + 8
+        menu:SetSize(menuWidth, menuHeight)
+
+        local screenHeight = UIParent:GetHeight() or 768
+        local btnBottom = self:GetBottom() or (screenHeight / 2)
+        menu:ClearAllPoints()
+        if btnBottom < (menuHeight + 20) then
+            menu:SetPoint("BOTTOMLEFT", self, "TOPLEFT", 0, 2)
+        else
+            menu:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -2)
+        end
+
+        menu:Show()
+        menu:Raise()
+
+        if hasScroll then
+            local scrollPos = math.max(0, math.min(totalContentHeight - (visibleCount * btnHeight), (selectedIndex - 1) * btnHeight))
+            menu.scrollFrame:SetVerticalScroll(scrollPos)
+        else
+            menu.scrollFrame:SetVerticalScroll(0)
+        end
+    end)
+
+    container.Sync = UpdateButtonText
+    container.SetValue = function(self, val)
+        if setFunc then setFunc(val) end
+        UpdateButtonText()
+    end
+    container.GetValue = function() return getFunc and getFunc() end
 
     table.insert(registeredWidgets, {
         type = "dropdown",
-        frame = dd,
-        update = function()
-            local v = getFunc and getFunc()
-            UIDropDownMenu_SetSelectedValue(dd, v)
-            UIDropDownMenu_SetText(dd, items[v] or tostring(v))
-        end,
+        frame = container,
+        update = UpdateButtonText,
     })
 
-    return dd
+    return container
+end
+
+function UI:CreateFontDropdown(parent, name, labelText, x, y, width, getFunc, setFunc, tooltip)
+    return self:CreateDropdown(parent, name, labelText, function() return self:GetAvailableFonts() end, x, y, width, getFunc, setFunc, tooltip, true)
+end
+
+function UI:CreateCycleButton(parent, name, labelText, options, x, y, width, getFunc, setFunc, tooltip)
+    return self:CreateDropdown(parent, name, labelText, options, x, y, width, getFunc, setFunc, tooltip)
 end
 
 --[[-----------------------------------------------------------------------------
@@ -744,22 +1031,28 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     )
     y = y - 48
 
-    local fontItems = {
-        ["Nata Sans Regular"] = "Nata Sans Regular",
-        ["Nata Sans Bold"] = "Nata Sans Bold",
-        ["Nata Sans Medium"] = "Nata Sans Medium",
-        ["Orbitron Regular"] = "Orbitron Regular",
-        ["Orbitron Bold"] = "Orbitron Bold",
-        ["Roboto Condensed Regular"] = "Roboto Condensed Regular",
-        ["Roboto Condensed Bold"] = "Roboto Condensed Bold",
+    local outlineItems = {
+        ["OUTLINE"]      = "Outline",
+        ["THICKOUTLINE"] = "Thick Outline",
+        ["NONE"]         = "None",
     }
-    self:CreateDropdown(pGeneral, "BAB_DdFont", "Default Body Font", fontItems, 16, y, 160,
+
+    self:CreateFontDropdown(pGeneral, "BAB_DdFont", "Default Body Font", 16, y, 160,
         function() return Config:Get("general", "font", "Nata Sans Regular") end,
-        function(v) Config:Set("general", "font", v) end
+        function(v) Config:Set("general", "font", v) end,
+        "Select the typography face for button macro labels and body text."
     )
-    self:CreateDropdown(pGeneral, "BAB_DdHkFont", "Header / Hotkey Font", fontItems, 230, y, 160,
+    self:CreateFontDropdown(pGeneral, "BAB_DdHkFont", "Header / Hotkey Font", 230, y, 160,
         function() return Config:Get("general", "headerFont", "Nata Sans Bold") end,
-        function(v) Config:Set("general", "headerFont", v) end
+        function(v) Config:Set("general", "headerFont", v) end,
+        "Select the typography face for hotkeys and item stack counters."
+    )
+    y = y - 48
+
+    self:CreateDropdown(pGeneral, "BAB_DdOutline", "Font Outline", outlineItems, 16, y, 160,
+        function() return Config:Get("general", "fontOutline", "OUTLINE") end,
+        function(v) Config:Set("general", "fontOutline", v) end,
+        "Select the font outline rendering style for action buttons."
     )
     y = y - 52
 
@@ -801,9 +1094,10 @@ function UI:BuildOptions(parentContainer, isMasterHub)
     )
     y = y - 48
 
-    self:CreateDropdown(pGeneral, "BAB_DdCdFont", "Cooldown Font", fontItems, 16, y, 160,
+    self:CreateFontDropdown(pGeneral, "BAB_DdCdFont", "Cooldown Font", 16, y, 160,
         function() return Config:Get("general", "cooldownFont", "Nata Sans Bold") end,
-        function(v) Config:Set("general", "cooldownFont", v) end
+        function(v) Config:Set("general", "cooldownFont", v) end,
+        "Select the typography face for cooldown countdown numbers."
     )
     y = y - 48
 
