@@ -1399,6 +1399,58 @@ function Core:HookButtonCooldown(btn)
     end)
 end
 
+local function SuppressButtonTexture(tex)
+    if not tex then return end
+    tex:SetTexture(nil)
+    if tex.SetAtlas then tex:SetAtlas(nil) end
+    tex:SetAlpha(0)
+    tex:Hide()
+    if not tex._buiSuppressHooked then
+        tex._buiSuppressHooked = true
+        hooksecurefunc(tex, "Show", function(self)
+            if not self._buiSuppressing then
+                self._buiSuppressing = true
+                self:SetTexture(nil)
+                if self.SetAtlas then self:SetAtlas(nil) end
+                self:SetAlpha(0)
+                self:Hide()
+                self._buiSuppressing = false
+            end
+        end)
+        hooksecurefunc(tex, "SetTexture", function(self, t)
+            if t ~= nil and not self._buiSuppressing then
+                self._buiSuppressing = true
+                self:SetTexture(nil)
+                self:SetAlpha(0)
+                self:Hide()
+                self._buiSuppressing = false
+            end
+        end)
+        if tex.SetAtlas then
+            hooksecurefunc(tex, "SetAtlas", function(self, atlas)
+                if atlas ~= nil and not self._buiSuppressing then
+                    self._buiSuppressing = true
+                    self:SetTexture(nil)
+                    self:SetAtlas(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                    self._buiSuppressing = false
+                end
+            end)
+        end
+        hooksecurefunc(tex, "SetVertexColor", function(self)
+            if not self._buiSuppressing then
+                self._buiSuppressing = true
+                self:SetTexture(nil)
+                if self.SetAtlas then self:SetAtlas(nil) end
+                self:SetAlpha(0)
+                self:Hide()
+                self._buiSuppressing = false
+            end
+        end)
+    end
+end
+
 function Core:SkinButton(btn)
     if not btn then return end
     if not skinnedButtons[btn] then
@@ -1419,6 +1471,23 @@ function Core:SkinButton(btn)
             pushed:SetColorTexture(1, 1, 1, 0.15)
             pushed:SetAllPoints()
             btn:SetPushedTexture(pushed)
+        end
+
+        if not btn._buiArtHooked then
+            btn._buiArtHooked = true
+            if btn.UpdateButtonArt then
+                hooksecurefunc(btn, "UpdateButtonArt", function(self)
+                    SuppressButtonTexture(self.SlotArt)
+                    SuppressButtonTexture(self.SlotBackground)
+                    SuppressButtonTexture(self.NormalTexture or (self.GetNormalTexture and self:GetNormalTexture()))
+                end)
+            end
+            if btn.SetNormalAtlas then
+                hooksecurefunc(btn, "SetNormalAtlas", function(self)
+                    local n = self.NormalTexture or (self.GetNormalTexture and self:GetNormalTexture())
+                    if n then SuppressButtonTexture(n) end
+                end)
+            end
         end
 
         if btn.SetHighlightTexture then
@@ -1546,52 +1615,32 @@ function Core:UpdateButtonVisuals(btn, barConfig)
         btn.IconMask:Hide()
     end
 
-    -- Permanently suppress Blizzard rounded borders and quickslot textures
+    -- Permanently suppress Blizzard rounded borders, quickslot, slot art & background textures
     local normal = (btnName and _G[btnName .. "NormalTexture"]) or btn.NormalTexture or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if normal then
-        normal:SetTexture(nil)
-        normal:SetAlpha(0)
-        normal:Hide()
-        if not normal._buiSuppressHooked then
-            normal._buiSuppressHooked = true
-            hooksecurefunc(normal, "SetVertexColor", function(self)
-                if not self._buiSuppressing then
-                    self._buiSuppressing = true
-                    self:SetTexture(nil)
-                    self:SetAlpha(0)
-                    self:Hide()
-                    self._buiSuppressing = false
-                end
-            end)
-            hooksecurefunc(normal, "Show", function(self)
-                if not self._buiSuppressing then
-                    self._buiSuppressing = true
-                    self:SetTexture(nil)
-                    self:SetAlpha(0)
-                    self:Hide()
-                    self._buiSuppressing = false
-                end
-            end)
-            hooksecurefunc(normal, "SetTexture", function(self, tex)
-                if tex ~= nil and not self._buiSuppressing then
-                    self._buiSuppressing = true
-                    self:SetTexture(nil)
-                    self:SetAlpha(0)
-                    self:Hide()
-                    self._buiSuppressing = false
-                end
-            end)
-        end
-    end
+    SuppressButtonTexture(normal)
+
+    local slotArt = btn.SlotArt or (btnName and _G[btnName .. "SlotArt"])
+    SuppressButtonTexture(slotArt)
+
+    local slotBg = btn.SlotBackground or (btnName and _G[btnName .. "SlotBackground"])
+    SuppressButtonTexture(slotBg)
+
     local fbg = (btnName and _G[btnName .. "FloatingBG"]) or btn.FloatingBG
-    if fbg then
-        fbg:SetAlpha(0)
-        fbg:Hide()
-    end
+    SuppressButtonTexture(fbg)
+
     local border = (btnName and _G[btnName .. "Border"]) or btn.Border
-    if border then
-        border:SetAlpha(0)
-        border:Hide()
+    SuppressButtonTexture(border)
+
+    -- Scan regions for any rogue Blizzard HUD action bar slot/border textures
+    if btn.GetRegions then
+        for _, region in ipairs({ btn:GetRegions() }) do
+            if region and region:IsObjectType("Texture") and region ~= (btn.icon or btn.Icon) then
+                local atlas = region.GetAtlas and region:GetAtlas()
+                if atlas and (atlas:lower():find("slot") or atlas:lower():find("iconframe") or atlas:lower():find("actionbar")) then
+                    SuppressButtonTexture(region)
+                end
+            end
+        end
     end
 
     -- Hotkey typography
@@ -1712,6 +1761,14 @@ function Core:CreateBarContainers()
             self:RegisterMover(b, "Action Bar " .. i, "ActionBar" .. i, point, x, y)
             bars[key] = b
             self:SetupMouseoverFade(b, key)
+
+            if i == 1 then
+                b:SetAttribute("_onstate-actionpage", [[
+                    self:SetAttribute("actionpage", newstate);
+                ]])
+                local curPage = (C_ActionBar and C_ActionBar.GetActionBarPage and C_ActionBar.GetActionBarPage()) or (GetActionBarPage and GetActionBarPage()) or 1
+                b:SetAttribute("actionpage", curPage)
+            end
         end
     end
 
@@ -1865,8 +1922,13 @@ function Core:LayoutBar(barFrame, barKey, barConfig, defaultSize, defaultSpacing
 
     -- Page driver for Bar 1
     if barKey == "bar1" and not InCombatLockdown() then
+        barFrame:SetAttribute("_onstate-actionpage", [[
+            self:SetAttribute("actionpage", newstate);
+        ]])
         local pageDriver = BuildBar1PageDriver(barConfig)
         pcall(RegisterStateDriver, barFrame, "actionpage", pageDriver)
+        local curPage = (C_ActionBar and C_ActionBar.GetActionBarPage and C_ActionBar.GetActionBarPage()) or (GetActionBarPage and GetActionBarPage()) or 1
+        barFrame:SetAttribute("actionpage", curPage)
     end
 
     -- Custom visibility macro condition
@@ -2959,6 +3021,22 @@ function Core:HookIndicatorColors()
             UpdateButtonColor(btn)
         end)
     end
+    if BaseActionButtonMixin and BaseActionButtonMixin.UpdateButtonArt and not self._buiBaseArtHooked then
+        self._buiBaseArtHooked = true
+        hooksecurefunc(BaseActionButtonMixin, "UpdateButtonArt", function(btn)
+            SuppressButtonTexture(btn.SlotArt)
+            SuppressButtonTexture(btn.SlotBackground)
+            SuppressButtonTexture(btn.NormalTexture or (btn.GetNormalTexture and btn:GetNormalTexture()))
+        end)
+    end
+    if ActionButtonMixin and ActionButtonMixin.UpdateButtonArt and not self._buiActionButtonMixinArtHooked then
+        self._buiActionButtonMixinArtHooked = true
+        hooksecurefunc(ActionButtonMixin, "UpdateButtonArt", function(btn)
+            SuppressButtonTexture(btn.SlotArt)
+            SuppressButtonTexture(btn.SlotBackground)
+            SuppressButtonTexture(btn.NormalTexture or (btn.GetNormalTexture and btn:GetNormalTexture()))
+        end)
+    end
 end
 
 --[[-----------------------------------------------------------------------------
@@ -3159,6 +3237,10 @@ Core:SetScript("OnEvent", function(self, event, ...)
             end
         end
     elseif event == "ACTIONBAR_PAGE_CHANGED" or event == "UPDATE_BONUS_ACTIONBAR" or event == "UPDATE_VEHICLE_ACTIONBAR" or event == "UPDATE_OVERRIDE_ACTIONBAR" or event == "UPDATE_SHAPESHIFT_FORM" or event == "UPDATE_POSSESS_BAR" or event == "UPDATE_EXTRA_ACTIONBAR" or event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE" then
+        local curPage = (C_ActionBar and C_ActionBar.GetActionBarPage and C_ActionBar.GetActionBarPage()) or (GetActionBarPage and GetActionBarPage()) or 1
+        if bars.bar1 and not InCombatLockdown() then
+            bars.bar1:SetAttribute("actionpage", curPage)
+        end
         self:HideBlizzardArt()
         self:LayoutVehicleLeave()
         self:LayoutExtraBar()
@@ -3166,7 +3248,10 @@ Core:SetScript("OnEvent", function(self, event, ...)
         if self.LayoutBagsBar then self:LayoutBagsBar() end
         for i = 1, 12 do
             local btn = _G["ActionButton" .. i]
-            if btn then self:UpdateButtonVisuals(btn) end
+            if btn then
+                if btn.UpdateAction then btn:UpdateAction() end
+                self:UpdateButtonVisuals(btn)
+            end
         end
     elseif event == "PET_BAR_UPDATE" then
         for i = 1, 10 do
