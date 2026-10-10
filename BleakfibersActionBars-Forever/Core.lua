@@ -933,6 +933,82 @@ function Core:HideBlizzardArt()
         if container then SuppressBlizzardFrame(container) end
     end
 
+    -- Classic 3.3.5 / Ascension MainMenuBar & ArtFrame complete suppression
+    if MainMenuBarArtFrame then
+        MainMenuBarArtFrame:Hide()
+        MainMenuBarArtFrame:SetAlpha(0)
+        if not MainMenuBarArtFrame._buiArtHooked then
+            MainMenuBarArtFrame._buiArtHooked = true
+            hooksecurefunc(MainMenuBarArtFrame, "Show", function(self)
+                self:Hide()
+                self:SetAlpha(0)
+            end)
+        end
+    end
+
+    local blizzardArtTextures = {
+        _G.MainMenuBarLeftEndCap,
+        _G.MainMenuBarRightEndCap,
+        _G.MainMenuBarTexture0,
+        _G.MainMenuBarTexture1,
+        _G.MainMenuBarTexture2,
+        _G.MainMenuBarTexture3,
+        _G.MainMenuMaxLevelBar0,
+        _G.MainMenuMaxLevelBar1,
+        _G.MainMenuMaxLevelBar2,
+        _G.MainMenuMaxLevelBar3,
+        _G.BonusActionBarTexture0,
+        _G.BonusActionBarTexture1,
+        _G.ShapeshiftBarLeft,
+        _G.ShapeshiftBarMiddle,
+        _G.ShapeshiftBarRight,
+        _G.PossessBackground1,
+        _G.PossessBackground2,
+    }
+    for _, tex in ipairs(blizzardArtTextures) do
+        if tex then
+            tex:SetTexture(nil)
+            tex:SetAlpha(0)
+            tex:Hide()
+            if not tex._buiArtHooked then
+                tex._buiArtHooked = true
+                hooksecurefunc(tex, "Show", function(self)
+                    self:SetTexture(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                end)
+                hooksecurefunc(tex, "SetTexture", function(self, t)
+                    if t ~= nil and not self._buiSuppressing then
+                        self._buiSuppressing = true
+                        self:SetTexture(nil)
+                        self:SetAlpha(0)
+                        self:Hide()
+                        self._buiSuppressing = false
+                    end
+                end)
+            end
+        end
+    end
+
+    local blizzardArtFrames = {
+        _G.MainMenuBarPageNumber,
+        _G.ActionBarUpButton,
+        _G.ActionBarDownButton,
+    }
+    for _, frame in ipairs(blizzardArtFrames) do
+        if frame then
+            frame:Hide()
+            frame:SetAlpha(0)
+            if not frame._buiArtHooked then
+                frame._buiArtHooked = true
+                hooksecurefunc(frame, "Show", function(self)
+                    self:Hide()
+                    self:SetAlpha(0)
+                end)
+            end
+        end
+    end
+
     local microContainers = {
         _G.MicroMenu,
         _G.MicroMenuContainer,
@@ -1470,11 +1546,53 @@ function Core:UpdateButtonVisuals(btn, barConfig)
         btn.IconMask:Hide()
     end
 
-    -- Hide Blizzard rounded borders
-    local normal = btn.NormalTexture or (btn.GetNormalTexture and btn:GetNormalTexture())
-    if normal then normal:SetAlpha(0) end
-    if btn.FloatingBG then btn.FloatingBG:SetAlpha(0) end
-    if btn.Border then btn.Border:SetAlpha(0) end
+    -- Permanently suppress Blizzard rounded borders and quickslot textures
+    local normal = (btnName and _G[btnName .. "NormalTexture"]) or btn.NormalTexture or (btn.GetNormalTexture and btn:GetNormalTexture())
+    if normal then
+        normal:SetTexture(nil)
+        normal:SetAlpha(0)
+        normal:Hide()
+        if not normal._buiSuppressHooked then
+            normal._buiSuppressHooked = true
+            hooksecurefunc(normal, "SetVertexColor", function(self)
+                if not self._buiSuppressing then
+                    self._buiSuppressing = true
+                    self:SetTexture(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                    self._buiSuppressing = false
+                end
+            end)
+            hooksecurefunc(normal, "Show", function(self)
+                if not self._buiSuppressing then
+                    self._buiSuppressing = true
+                    self:SetTexture(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                    self._buiSuppressing = false
+                end
+            end)
+            hooksecurefunc(normal, "SetTexture", function(self, tex)
+                if tex ~= nil and not self._buiSuppressing then
+                    self._buiSuppressing = true
+                    self:SetTexture(nil)
+                    self:SetAlpha(0)
+                    self:Hide()
+                    self._buiSuppressing = false
+                end
+            end)
+        end
+    end
+    local fbg = (btnName and _G[btnName .. "FloatingBG"]) or btn.FloatingBG
+    if fbg then
+        fbg:SetAlpha(0)
+        fbg:Hide()
+    end
+    local border = (btnName and _G[btnName .. "Border"]) or btn.Border
+    if border then
+        border:SetAlpha(0)
+        border:Hide()
+    end
 
     -- Hotkey typography
     local hk = btn.HotKey
@@ -2917,9 +3035,31 @@ Core:SetScript("OnEvent", function(self, event, ...)
         end
         self:UpdateAllCooldownFonts()
 
-        if ActionButton_Update then
+        if ActionButton_Update and not self._buiActionButtonUpdateHooked then
+            self._buiActionButtonUpdateHooked = true
             hooksecurefunc("ActionButton_Update", function(btn)
                 if btn then Core:UpdateButtonVisuals(btn) end
+            end)
+        end
+
+        if ActionButton_ShowGrid and not self._buiShowGridHooked then
+            self._buiShowGridHooked = true
+            hooksecurefunc("ActionButton_ShowGrid", function(btn)
+                if btn then Core:UpdateButtonVisuals(btn) end
+            end)
+        end
+
+        if MainMenuBar_UpdateArt and not self._buiArtHooked then
+            self._buiArtHooked = true
+            hooksecurefunc("MainMenuBar_UpdateArt", function()
+                Core:HideBlizzardArt()
+            end)
+        end
+
+        if MainMenuBar_UpdateExperienceBars and not self._buiExpHooked then
+            self._buiExpHooked = true
+            hooksecurefunc("MainMenuBar_UpdateExperienceBars", function()
+                Core:HideBlizzardArt()
             end)
         end
 
