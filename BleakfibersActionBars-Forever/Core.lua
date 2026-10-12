@@ -1360,6 +1360,14 @@ function Core:UpdateAllCooldownFonts()
     end
 end
 
+local function IsLongCooldown(dur)
+    return dur and dur > 2
+end
+
+local function IsZeroCooldown(dur)
+    return dur == 0
+end
+
 function Core:HookButtonCooldown(btn)
     local btnName = btn.GetName and btn:GetName()
     local cd = btn.cooldown or (btnName and _G[btnName .. "Cooldown"])
@@ -1387,13 +1395,17 @@ function Core:HookButtonCooldown(btn)
     end
 
     hooksecurefunc(cd, "SetCooldown", function(self, start, duration)
-        if duration and duration > 2 then
+        local ok, isLong = pcall(IsLongCooldown, duration)
+        if ok and isLong then
             self._babHasCooldown = true
-        elseif duration == 0 and self._babHasCooldown then
-            self._babHasCooldown = false
-            local p = self:GetParent()
-            if p and Core.TriggerCooldownPulse then
-                Core:TriggerCooldownPulse(p)
+        else
+            local okZero, isZero = pcall(IsZeroCooldown, duration)
+            if okZero and isZero and self._babHasCooldown then
+                self._babHasCooldown = false
+                local p = self:GetParent()
+                if p and Core.TriggerCooldownPulse then
+                    Core:TriggerCooldownPulse(p)
+                end
             end
         end
     end)
